@@ -1,46 +1,57 @@
-"""API routes for version 1."""
+"""API routes for version 1.
 
-import uuid
-from typing import Any, Dict, Optional
+This module defines the REST API endpoints using FastAPI with proper
+dependency injection to eliminate global state.
+"""
 
-from fastapi import APIRouter, HTTPException
+import logging
+from typing import Any, Dict
+
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.analyzers.rule_engine import RuleEngine
-from app.api.v1.schemas import AnalysisMetrics, AnalyzeRequest, AnalyzeResponse, Issue
+from app.api.v1.schemas import AnalyzeRequest, AnalyzeResponse
 from app.core.analyzer import TestAnalyzer
+from app.core.constants import MAX_FILES_PER_REQUEST
 from app.core.llm_analyzer import LLMAnalyzer
 from app.core.llm_client import create_llm_client
-from app.core.suggestion_generator import SuggestionGenerator
 
 router = APIRouter()
-
-# Initialize components
-analyzer: Optional[TestAnalyzer] = None
-suggestion_generator = SuggestionGenerator()
+logger = logging.getLogger(__name__)
 
 
 def get_analyzer() -> TestAnalyzer:
-    """Get or create the analyzer instance."""
-    global analyzer
-    if analyzer is None:
-        try:
-            # Initialize components
-            rule_engine = RuleEngine()
-            llm_client = create_llm_client()
-            llm_analyzer = LLMAnalyzer(llm_client)
+    """
+    Dependency injection factory for TestAnalyzer.
 
-            # Create main analyzer
-            analyzer = TestAnalyzer(rule_engine, llm_analyzer)
-        except Exception as e:
-            raise HTTPException(
-                status_code=503, detail=f"Failed to initialize analyzer: {str(e)}"
-            )
+    This function follows the Dependency Inversion Principle by creating
+    instances with proper dependency injection, eliminating global state.
 
-    return analyzer
+    Returns:
+        TestAnalyzer instance
+
+    Raises:
+        HTTPException: If analyzer initialization fails
+    """
+    try:
+        # Initialize components with dependency injection
+        rule_engine = RuleEngine()
+        llm_client = create_llm_client()
+        llm_analyzer = LLMAnalyzer(llm_client)
+
+        # Create main analyzer with injected dependencies
+        return TestAnalyzer(rule_engine, llm_analyzer)
+    except Exception as e:
+        logger.error(f"Failed to initialize analyzer: {e}")
+        raise HTTPException(
+            status_code=503, detail=f"Failed to initialize analyzer: {str(e)}"
+        )
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_tests(request: AnalyzeRequest) -> AnalyzeResponse:
+async def analyze_tests(
+    request: AnalyzeRequest, test_analyzer: TestAnalyzer = Depends(get_analyzer)
+) -> AnalyzeResponse:
     """
     Analyze pytest test files for quality issues.
 
@@ -50,6 +61,7 @@ async def analyze_tests(request: AnalyzeRequest) -> AnalyzeResponse:
 
     Args:
         request: Analysis request containing test files and configuration
+        test_analyzer: Injected TestAnalyzer instance
 
     Returns:
         Analysis response with detected issues and metrics
@@ -58,96 +70,86 @@ async def analyze_tests(request: AnalyzeRequest) -> AnalyzeResponse:
         HTTPException: If analysis fails or request is invalid
     """
     try:
-        # Get analyzer instance
-        test_analyzer = get_analyzer()
-
         # Validate request
         if not request.files:
             raise HTTPException(
                 status_code=400, detail="No files provided for analysis"
             )
 
-        if len(request.files) > 50:  # Configurable limit
-            raise HTTPException(status_code=400, detail="Too many files (max 50)")
+        if len(request.files) > MAX_FILES_PER_REQUEST:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Too many files (max {MAX_FILES_PER_REQUEST})",
+            )
 
         # Run analysis
         result = await test_analyzer.analyze_files(
             files=request.files, mode=request.mode, config=request.config
         )
 
-        # Enhance suggestions for rule-based issues
-        enhanced_issues = []
-        for issue in result.issues:
-            if issue.detected_by == "rule_engine":
-                # Find the parsed file for this issue
-                parsed_file = None
-                for file_input in request.files:
-                    if file_input.path == issue.file:
-                        # We don't have the parsed file here, so we'll skip enhancement
-                        # In a real implementation, we'd pass the parsed files
-                        enhanced_issues.append(issue)
-                        break
-                else:
-                    enhanced_issues.append(issue)
-            else:
-                enhanced_issues.append(issue)
-
-        # Create response with enhanced issues
-        return AnalyzeResponse(
-            analysis_id=result.analysis_id,
-            issues=enhanced_issues,
-            metrics=result.metrics,
-        )
+        return result
 
     except HTTPException:
         # Re-raise HTTP exceptions as-is
         raise
     except ValueError as e:
+        logger.error(f"Validation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        # Log the error and return generic message
-        import logging
-
-        logger = logging.getLogger(__name__)
-        logger.error(f"Analysis failed: {e}")
+        logger.error(f"Analysis failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Analysis failed due to internal error"
         )
 
 
 @router.get("/health")
-async def health_check() -> Dict[str, Any]:
-    """Health check endpoint for the API."""
-    try:
-        # Check if analyzer can be initialized
-        test_analyzer = get_analyzer()
+async def health_check(
+    test_analyzer: TestAnalyzer = Depends(get_analyzer),
+) -> Dict[str, Any]:
+    """
+    Health check endpoint for the API.
 
+    Args:
+        test_analyzer: Injected TestAnalyzer instance
+
+    Returns:
+        Health status information
+    """
+    try:
         return {
             "status": "healthy",
             "analyzer_ready": test_analyzer is not None,
-            "mode": "full",  # Could be extended to check LLM connectivity
+            "mode": "full",
         }
     except Exception as e:
+        logger.error(f"Health check failed: {e}")
         return {"status": "unhealthy", "error": str(e), "analyzer_ready": False}
 
 
 @router.get("/modes")
 async def get_analysis_modes() -> Dict[str, Any]:
-    """Get available analysis modes."""
+    """
+    Get available analysis modes.
+
+    Returns:
+        Dictionary containing available analysis modes with descriptions
+    """
+    from app.core.constants import AnalysisMode
+
     return {
         "modes": [
             {
-                "id": "rules-only",
+                "id": AnalysisMode.RULES_ONLY.value,
                 "name": "Rules Only",
                 "description": "Fast analysis using only deterministic rules (recommended for quick checks)",
             },
             {
-                "id": "llm-only",
+                "id": AnalysisMode.LLM_ONLY.value,
                 "name": "LLM Only",
                 "description": "Deep analysis using only AI (slower but more comprehensive)",
             },
             {
-                "id": "hybrid",
+                "id": AnalysisMode.HYBRID.value,
                 "name": "Hybrid",
                 "description": "Combines fast rule-based analysis with AI for uncertain cases (recommended)",
             },

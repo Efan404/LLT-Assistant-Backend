@@ -6,6 +6,18 @@ from typing import List, Set
 
 from app.analyzers.ast_parser import AssertionInfo, ParsedTestFile, TestFunctionInfo
 from app.api.v1.schemas import Issue, IssueSuggestion
+from app.core.constants import (
+    ACTION_ADD,
+    ACTION_REMOVE,
+    ACTION_REPLACE,
+    DETECTED_BY_RULE_ENGINE,
+    ISSUE_TYPE_MISSING_ASSERTION,
+    ISSUE_TYPE_REDUNDANT_ASSERTION,
+    ISSUE_TYPE_TRIVIAL_ASSERTION,
+    ISSUE_TYPE_UNUSED_FIXTURE,
+    ISSUE_TYPE_UNUSED_VARIABLE,
+    Severity,
+)
 
 
 class Rule(ABC):
@@ -37,10 +49,10 @@ class Rule(ABC):
             severity=self.severity,
             type=self.rule_id,
             message=message or self.message_template,
-            detected_by="rule_engine",
+            detected_by=DETECTED_BY_RULE_ENGINE,
             suggestion=suggestion
             or IssueSuggestion(
-                action="remove", explanation="No specific suggestion provided"
+                action=ACTION_REMOVE, explanation="No specific suggestion provided"
             ),
         )
 
@@ -50,8 +62,8 @@ class RedundantAssertionRule(Rule):
 
     def __init__(self):
         super().__init__(
-            rule_id="redundant-assertion",
-            severity="warning",
+            rule_id=ISSUE_TYPE_REDUNDANT_ASSERTION,
+            severity=Severity.WARNING.value,
             message_template="Duplicate assertion found",
         )
 
@@ -85,7 +97,7 @@ class RedundantAssertionRule(Rule):
                 # Found a duplicate
                 original = seen_assertions[assertion_key]
                 suggestion = IssueSuggestion(
-                    action="remove",
+                    action=ACTION_REMOVE,
                     old_code=assertion.source_code,
                     new_code=None,
                     explanation=f"This assertion is identical to the one at line {original.line_number}. Remove to reduce redundancy.",
@@ -120,8 +132,8 @@ class MissingAssertionRule(Rule):
 
     def __init__(self):
         super().__init__(
-            rule_id="missing-assertion",
-            severity="error",
+            rule_id=ISSUE_TYPE_MISSING_ASSERTION,
+            severity=Severity.ERROR.value,
             message_template="Test function has no assertions",
         )
 
@@ -168,7 +180,7 @@ class MissingAssertionRule(Rule):
     ) -> Issue:
         """Create an issue for missing assertions."""
         suggestion = IssueSuggestion(
-            action="add",
+            action=ACTION_ADD,
             old_code=None,
             new_code="    assert result is not None  # Add appropriate assertion",
             explanation="Add assertions to verify the expected behavior of your test.",
@@ -187,8 +199,8 @@ class TrivialAssertionRule(Rule):
 
     def __init__(self):
         super().__init__(
-            rule_id="trivial-assertion",
-            severity="error",
+            rule_id=ISSUE_TYPE_TRIVIAL_ASSERTION,
+            severity=Severity.ERROR.value,
             message_template="Trivial assertion that always passes",
         )
 
@@ -216,7 +228,7 @@ class TrivialAssertionRule(Rule):
         for assertion in test_func.assertions:
             if assertion.is_trivial:
                 suggestion = IssueSuggestion(
-                    action="replace",
+                    action=ACTION_REPLACE,
                     old_code=assertion.source_code,
                     new_code="    assert actual_result == expected_result",
                     explanation="Replace with a meaningful assertion that tests actual behavior.",
@@ -240,8 +252,8 @@ class UnusedFixtureRule(Rule):
 
     def __init__(self):
         super().__init__(
-            rule_id="unused-fixture",
-            severity="info",
+            rule_id=ISSUE_TYPE_UNUSED_FIXTURE,
+            severity=Severity.INFO.value,
             message_template="Fixture is defined but never used",
         )
 
@@ -256,7 +268,7 @@ class UnusedFixtureRule(Rule):
         for fixture in parsed_file.fixtures:
             if fixture.name not in used_fixtures:
                 suggestion = IssueSuggestion(
-                    action="remove",
+                    action=ACTION_REMOVE,
                     old_code=f"@pytest.fixture\ndef {fixture.name}():\n    # fixture implementation",
                     new_code=None,
                     explanation="Remove unused fixture to reduce code complexity.",
@@ -294,8 +306,8 @@ class UnusedVariableRule(Rule):
 
     def __init__(self):
         super().__init__(
-            rule_id="unused-variable",
-            severity="info",
+            rule_id=ISSUE_TYPE_UNUSED_VARIABLE,
+            severity=Severity.INFO.value,
             message_template="Variable is defined but never used",
         )
 
@@ -362,7 +374,7 @@ class UnusedVariableRule(Rule):
                 line_number = self._find_assignment_line(func_node, var_name)
 
                 suggestion = IssueSuggestion(
-                    action="remove",
+                    action=ACTION_REMOVE,
                     old_code=f"    {var_name} = ",  # Simplified - could be more specific
                     new_code=None,
                     explanation=f"Remove unused variable '{var_name}' to reduce code complexity.",
