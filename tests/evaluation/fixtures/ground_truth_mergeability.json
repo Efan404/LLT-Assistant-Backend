@@ -1,0 +1,432 @@
+{
+  "description": "Ground truth dataset for test mergeability analysis based on real pytest patterns",
+  "version": "1.0",
+  "total_cases": 35,
+  "test_cases": [
+    {
+      "id": "merge_001",
+      "test_function_1": "def test_client_initialization():\n    \"\"\"Test that LLM client initializes with correct configuration.\"\"\"\n    client = LLMClient(api_key=\"test-key\", base_url=\"https://api.test.com/v1\")\n    assert client.api_key == \"test-key\"\n    assert client.base_url == \"https://api.test.com/v1\"",
+      "test_function_2": "def test_client_initialization_with_defaults():\n    \"\"\"Test client initialization with default settings.\"\"\"\n    client = LLMClient()\n    assert client.api_key is not None\n    assert client.base_url is not None",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.85,
+        "reason": "Tests verify different aspects: one tests explicit configuration, the other tests default values. Both are valuable test scenarios.",
+        "merged_test_name": null,
+        "concerns": ["Tests have different purposes and assertions"]
+      }
+    },
+    {
+      "id": "merge_002",
+      "test_function_1": "def test_addition():\n    \"\"\"Test addition operation.\"\"\"\n    assert 5 + 3 == 8",
+      "test_function_2": "def test_addition_positive_numbers():\n    \"\"\"Test addition with positive integers.\"\"\"\n    result = 5 + 3\n    assert result == 8",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.95,
+        "reason": "Both tests verify the same functionality with identical inputs and assertions. The second test only adds an intermediate variable without additional value.",
+        "merged_test_name": "test_addition",
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_003",
+      "test_function_1": "def test_redundant_assertions():\n    \"\"\"Test with duplicate assertions.\"\"\"\n    value = 42\n    assert value == 42\n    assert value == 42",
+      "test_function_2": "def test_value_check():\n    \"\"\"Test value verification.\"\"\"\n    value = 42\n    assert value == 42",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.90,
+        "reason": "Both tests check the same condition. The first test has redundant assertions that should be cleaned up. They can be merged into a single, cleaner test.",
+        "merged_test_name": "test_value_check",
+        "concerns": ["First test has quality issues (redundant assertions)"]
+      }
+    },
+    {
+      "id": "merge_004",
+      "test_function_1": "@pytest.mark.asyncio\nasync def test_successful_chat_completion(sample_messages):\n    \"\"\"Test successful chat completion request.\"\"\"\n    client = LLMClient(api_key=\"test-key\")\n    response = await client.chat_completion(sample_messages)\n    assert response is not None\n    assert 'choices' in response",
+      "test_function_2": "@pytest.mark.asyncio\nasync def test_chat_completion_with_timeout(sample_messages):\n    \"\"\"Test chat completion with timeout handling.\"\"\"\n    client = LLMClient(api_key=\"test-key\", timeout=5.0)\n    with pytest.raises(LLMTimeoutError):\n        await client.chat_completion(sample_messages)",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.95,
+        "reason": "These tests verify different scenarios: success case vs timeout/error case. Both are essential for comprehensive test coverage.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_005",
+      "test_function_1": "def test_string_operations():\n    \"\"\"Test string manipulation.\"\"\"\n    text = \"hello world\"\n    assert text.upper() == \"HELLO WORLD\"\n    assert len(text) == 11",
+      "test_function_2": "def test_string_uppercase():\n    \"\"\"Test string conversion to uppercase.\"\"\"\n    text = \"hello world\"\n    assert text.upper() == \"HELLO WORLD\"",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.85,
+        "reason": "The second test is a subset of the first. test_string_operations already covers uppercase conversion plus length check, making the second test redundant.",
+        "merged_test_name": "test_string_operations",
+        "concerns": ["Second test is redundant"]
+      }
+    },
+    {
+      "id": "merge_006",
+      "test_function_1": "def test_with_fixture(sample_data):\n    \"\"\"Test using a fixture.\"\"\"\n    assert sample_data['name'] == 'Test User'\n    assert sample_data['age'] == 30",
+      "test_function_2": "def test_sample_data_email(sample_data):\n    \"\"\"Test email field in sample data.\"\"\"\n    assert sample_data['email'] == 'test@example.com'",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.80,
+        "reason": "While both use the same fixture, they test different attributes of the data. Could potentially be merged for simplicity, but keeping them separate allows better test isolation and clearer failure messages.",
+        "merged_test_name": null,
+        "concerns": ["Could be merged but separation provides better test granularity"]
+      }
+    },
+    {
+      "id": "merge_007",
+      "test_function_1": "def test_empty():\n    \"\"\"Empty test with no assertions.\"\"\"\n    pass",
+      "test_function_2": "def test_only_setup():\n    \"\"\"Test that only performs setup.\"\"\"\n    value = 100\n    result = value / 10",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.75,
+        "reason": "Both tests are problematic (missing assertions), but they appear to have different intended purposes. Should fix both rather than merge.",
+        "merged_test_name": null,
+        "concerns": ["Both tests have quality issues and need fixing"]
+      }
+    },
+    {
+      "id": "merge_008",
+      "test_function_1": "def test_api_key_validation():\n    \"\"\"Test API key validation logic.\"\"\"\n    client = LLMClient(api_key=\"\")\n    assert client.api_key == \"\"",
+      "test_function_2": "def test_empty_api_key():\n    \"\"\"Test handling of empty API key.\"\"\"\n    client = LLMClient(api_key=\"\")\n    assert client.api_key == \"\"",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.95,
+        "reason": "Identical tests with different names. They verify the exact same behavior and should be merged to avoid redundancy.",
+        "merged_test_name": "test_empty_api_key",
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_009",
+      "test_function_1": "class TestCalculator:\n    def test_addition(self):\n        \"\"\"Test addition operation.\"\"\"\n        assert 5 + 3 == 8\n    \n    def test_subtraction(self):\n        \"\"\"Test subtraction operation.\"\"\"\n        assert 10 - 4 == 6",
+      "test_function_2": "def test_calculator_addition():\n    \"\"\"Test calculator addition.\"\"\"\n    assert 5 + 3 == 8",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.85,
+        "reason": "While they test the same operation, one is part of a test class (better organization) and the other is standalone. The class-based approach is better for grouping related tests.",
+        "merged_test_name": null,
+        "concerns": ["Different organizational patterns"]
+      }
+    },
+    {
+      "id": "merge_010",
+      "test_function_1": "@pytest.mark.parametrize('value,expected', [(2, 4), (3, 9), (4, 16)])\ndef test_square(value, expected):\n    \"\"\"Test squaring numbers.\"\"\"\n    assert value ** 2 == expected",
+      "test_function_2": "def test_square_two():\n    \"\"\"Test squaring the number 2.\"\"\"\n    assert 2 ** 2 == 4",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.90,
+        "reason": "The second test is already covered by the parametrized test. The parametrized version is better as it tests multiple cases efficiently.",
+        "merged_test_name": "test_square",
+        "concerns": ["Second test is redundant with parametrized version"]
+      }
+    },
+    {
+      "id": "merge_011",
+      "test_function_1": "def test_error_handling():\n    \"\"\"Test error handling for invalid input.\"\"\"\n    with pytest.raises(ValueError):\n        process_data(None)",
+      "test_function_2": "def test_none_input_raises_error():\n    \"\"\"Test that None input raises ValueError.\"\"\"\n    with pytest.raises(ValueError):\n        process_data(None)",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.95,
+        "reason": "Identical tests with different names testing the exact same error condition. Should be merged.",
+        "merged_test_name": "test_none_input_raises_error",
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_012",
+      "test_function_1": "def test_user_creation():\n    \"\"\"Test creating a new user.\"\"\"\n    user = User(name='John', age=30)\n    assert user.name == 'John'\n    assert user.age == 30",
+      "test_function_2": "def test_user_validation():\n    \"\"\"Test user validation logic.\"\"\"\n    user = User(name='John', age=30)\n    assert user.is_valid() == True",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.90,
+        "reason": "Different test purposes: one tests object creation/attributes, the other tests validation logic. Both are necessary for comprehensive coverage.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_013",
+      "test_function_1": "def test_list_operations():\n    \"\"\"Test basic list operations.\"\"\"\n    lst = [1, 2, 3]\n    lst.append(4)\n    assert len(lst) == 4\n    assert lst[-1] == 4",
+      "test_function_2": "def test_list_append():\n    \"\"\"Test appending to a list.\"\"\"\n    lst = [1, 2, 3]\n    lst.append(4)\n    assert lst == [1, 2, 3, 4]",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.75,
+        "reason": "While both test append, they verify different aspects: one checks length and last element, the other checks full list content. Both perspectives have value.",
+        "merged_test_name": null,
+        "concerns": ["Borderline case - could argue for merging"]
+      }
+    },
+    {
+      "id": "merge_014",
+      "test_function_1": "def test_with_sleep():\n    \"\"\"Test with timing dependency.\"\"\"\n    time.sleep(0.1)\n    value = 42\n    assert value == 42",
+      "test_function_2": "def test_simple_value():\n    \"\"\"Test simple value check.\"\"\"\n    value = 42\n    assert value == 42",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.80,
+        "reason": "The first test has a code smell (time.sleep) but otherwise tests the same thing as the second. They should be merged and the sleep removed.",
+        "merged_test_name": "test_simple_value",
+        "concerns": ["First test has quality issue (time.sleep)"]
+      }
+    },
+    {
+      "id": "merge_015",
+      "test_function_1": "@pytest.fixture\ndef sample_config():\n    return {'timeout': 30, 'retries': 3}\n\ndef test_config_timeout(sample_config):\n    \"\"\"Test timeout configuration.\"\"\"\n    assert sample_config['timeout'] == 30",
+      "test_function_2": "@pytest.fixture\ndef sample_config():\n    return {'timeout': 30, 'retries': 3}\n\ndef test_config_retries(sample_config):\n    \"\"\"Test retries configuration.\"\"\"\n    assert sample_config['retries'] == 3",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.85,
+        "reason": "Tests verify different configuration fields. Keeping them separate provides better test isolation and clearer failure messages when specific config values are wrong.",
+        "merged_test_name": null,
+        "concerns": ["Fixture duplication could be moved to conftest.py"]
+      }
+    },
+    {
+      "id": "merge_016",
+      "test_function_1": "def test_json_response():\n    \"\"\"Test JSON response parsing.\"\"\"\n    response = {'status': 'success', 'data': {'id': 123}}\n    assert response['status'] == 'success'\n    assert response['data']['id'] == 123",
+      "test_function_2": "def test_response_structure():\n    \"\"\"Test response has correct structure.\"\"\"\n    response = {'status': 'success', 'data': {'id': 123}}\n    assert 'status' in response\n    assert 'data' in response\n    assert 'id' in response['data']",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.85,
+        "reason": "Different testing strategies: one tests actual values, the other tests structure/presence of keys. Both provide different value and should be kept separate.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_017",
+      "test_function_1": "def test_multiplication():\n    \"\"\"Test multiplication operation.\"\"\"\n    assert 6 * 7 == 42",
+      "test_function_2": "def test_multiply_six_and_seven():\n    \"\"\"Test multiplying 6 and 7.\"\"\"\n    result = 6 * 7\n    assert result == 42",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.95,
+        "reason": "Identical tests with trivial differences (intermediate variable). Should be merged to reduce redundancy.",
+        "merged_test_name": "test_multiplication",
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_018",
+      "test_function_1": "def test_database_connection():\n    \"\"\"Test database connection establishment.\"\"\"\n    db = Database(host='localhost')\n    assert db.connect() == True",
+      "test_function_2": "def test_database_query():\n    \"\"\"Test database query execution.\"\"\"\n    db = Database(host='localhost')\n    db.connect()\n    result = db.query('SELECT 1')\n    assert result is not None",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.90,
+        "reason": "Different test scopes: one tests connection, the other tests querying. These are distinct functionalities requiring separate tests.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_019",
+      "test_function_1": "def test_trivial_assertion():\n    \"\"\"Test with trivial always-true assertion.\"\"\"\n    assert True\n    assert 1 == 1",
+      "test_function_2": "def test_always_passes():\n    \"\"\"Test that always passes.\"\"\"\n    assert True",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.70,
+        "reason": "Both tests have trivial assertions and provide no real value. They should be removed entirely rather than merged, but if keeping one, they are mergeable.",
+        "merged_test_name": null,
+        "concerns": ["Both tests should be removed rather than merged"]
+      }
+    },
+    {
+      "id": "merge_020",
+      "test_function_1": "def test_http_get_request():\n    \"\"\"Test HTTP GET request.\"\"\"\n    response = client.get('/api/users')\n    assert response.status_code == 200",
+      "test_function_2": "def test_http_post_request():\n    \"\"\"Test HTTP POST request.\"\"\"\n    response = client.post('/api/users', json={'name': 'John'})\n    assert response.status_code == 201",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.95,
+        "reason": "Different HTTP methods being tested (GET vs POST). These are fundamentally different operations and must remain separate.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_021",
+      "test_function_1": "def test_complex_redundancy():\n    \"\"\"Test with complex redundant logic.\"\"\"\n    data = {'key': 'value'}\n    assert data['key'] == 'value'\n    assert 'key' in data\n    assert data.get('key') == 'value'",
+      "test_function_2": "def test_dict_access():\n    \"\"\"Test dictionary key access.\"\"\"\n    data = {'key': 'value'}\n    assert data['key'] == 'value'",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.85,
+        "reason": "First test has redundant assertions checking the same thing multiple ways. The second test is cleaner and sufficient. Should merge to the simpler version.",
+        "merged_test_name": "test_dict_access",
+        "concerns": ["First test has quality issues (redundant assertions)"]
+      }
+    },
+    {
+      "id": "merge_022",
+      "test_function_1": "@pytest.mark.slow\ndef test_large_dataset_processing():\n    \"\"\"Test processing large dataset.\"\"\"\n    data = generate_large_dataset(10000)\n    result = process(data)\n    assert len(result) == 10000",
+      "test_function_2": "def test_small_dataset_processing():\n    \"\"\"Test processing small dataset.\"\"\"\n    data = generate_large_dataset(10)\n    result = process(data)\n    assert len(result) == 10",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.90,
+        "reason": "Tests verify behavior with different data scales. Performance and correctness can vary with dataset size, so both tests provide unique value.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_023",
+      "test_function_1": "def test_exception_message():\n    \"\"\"Test exception message content.\"\"\"\n    with pytest.raises(ValueError, match='Invalid input'):\n        validate_input('')",
+      "test_function_2": "def test_exception_type():\n    \"\"\"Test exception type.\"\"\"\n    with pytest.raises(ValueError):\n        validate_input('')",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.85,
+        "reason": "First test is more comprehensive as it checks both exception type and message. Second test is redundant.",
+        "merged_test_name": "test_exception_message",
+        "concerns": ["Second test is subset of first"]
+      }
+    },
+    {
+      "id": "merge_024",
+      "test_function_1": "def test_file_read():\n    \"\"\"Test reading file content.\"\"\"\n    content = read_file('test.txt')\n    assert content is not None\n    assert len(content) > 0",
+      "test_function_2": "def test_file_write():\n    \"\"\"Test writing file content.\"\"\"\n    write_file('test.txt', 'data')\n    content = read_file('test.txt')\n    assert content == 'data'",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.95,
+        "reason": "Different operations being tested (read vs write). These are distinct functionalities that require separate tests.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_025",
+      "test_function_1": "def test_retry_logic():\n    \"\"\"Test retry mechanism.\"\"\"\n    with patch('requests.get') as mock_get:\n        mock_get.side_effect = [ConnectionError(), Response(200)]\n        result = fetch_with_retry('http://example.com')\n        assert mock_get.call_count == 2",
+      "test_function_2": "def test_max_retries_exceeded():\n    \"\"\"Test behavior when max retries exceeded.\"\"\"\n    with patch('requests.get') as mock_get:\n        mock_get.side_effect = ConnectionError()\n        with pytest.raises(ConnectionError):\n            fetch_with_retry('http://example.com', max_retries=3)",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.95,
+        "reason": "Different retry scenarios: success after retry vs failure after max retries. Both are critical edge cases that need separate tests.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_026",
+      "test_function_1": "def test_cache_hit():\n    \"\"\"Test cache hit scenario.\"\"\"\n    cache = Cache()\n    cache.set('key', 'value')\n    result = cache.get('key')\n    assert result == 'value'",
+      "test_function_2": "def test_cache_miss():\n    \"\"\"Test cache miss scenario.\"\"\"\n    cache = Cache()\n    result = cache.get('nonexistent')\n    assert result is None",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.95,
+        "reason": "Different cache scenarios (hit vs miss). Both are essential test cases for cache functionality.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_027",
+      "test_function_1": "def test_sorting_ascending():\n    \"\"\"Test sorting in ascending order.\"\"\"\n    data = [3, 1, 2]\n    result = sort(data, order='asc')\n    assert result == [1, 2, 3]",
+      "test_function_2": "def test_sorting_descending():\n    \"\"\"Test sorting in descending order.\"\"\"\n    data = [3, 1, 2]\n    result = sort(data, order='desc')\n    assert result == [3, 2, 1]",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.90,
+        "reason": "Different sorting orders being tested. Both are distinct behaviors that require separate verification.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_028",
+      "test_function_1": "def test_authentication_success():\n    \"\"\"Test successful authentication.\"\"\"\n    result = authenticate('user', 'correct_password')\n    assert result.success == True\n    assert result.user_id is not None",
+      "test_function_2": "def test_authentication_failure():\n    \"\"\"Test failed authentication.\"\"\"\n    result = authenticate('user', 'wrong_password')\n    assert result.success == False\n    assert result.error_message == 'Invalid credentials'",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.95,
+        "reason": "Different authentication outcomes (success vs failure). Both scenarios are critical for security testing.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_029",
+      "test_function_1": "def test_empty_list():\n    \"\"\"Test behavior with empty list.\"\"\"\n    result = process_list([])\n    assert result == []",
+      "test_function_2": "def test_empty_input():\n    \"\"\"Test handling of empty input.\"\"\"\n    result = process_list([])\n    assert result == []",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.95,
+        "reason": "Identical tests with different names. Should be merged to eliminate redundancy.",
+        "merged_test_name": "test_empty_list",
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_030",
+      "test_function_1": "def test_rate_limit_not_exceeded():\n    \"\"\"Test normal operation under rate limit.\"\"\"\n    for i in range(5):\n        result = api_call()\n        assert result.status == 'success'",
+      "test_function_2": "def test_rate_limit_exceeded():\n    \"\"\"Test behavior when rate limit exceeded.\"\"\"\n    for i in range(100):\n        api_call()\n    with pytest.raises(RateLimitError):\n        api_call()",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.95,
+        "reason": "Different rate limit scenarios: within limit vs exceeding limit. Both are important for rate limiting functionality.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_031",
+      "test_function_1": "def test_json_serialization():\n    \"\"\"Test JSON serialization.\"\"\"\n    data = {'name': 'John', 'age': 30}\n    result = json.dumps(data)\n    assert isinstance(result, str)\n    assert 'John' in result",
+      "test_function_2": "def test_json_deserialization():\n    \"\"\"Test JSON deserialization.\"\"\"\n    json_str = '{\"name\": \"John\", \"age\": 30}'\n    result = json.loads(json_str)\n    assert isinstance(result, dict)\n    assert result['name'] == 'John'",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.95,
+        "reason": "Different operations: serialization vs deserialization. These are inverse operations that both need testing.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_032",
+      "test_function_1": "def test_hardcoded_values():\n    \"\"\"Test with hardcoded sensitive values.\"\"\"\n    api_key = 'sk-1234567890abcdef'\n    url = 'https://example.com'\n    assert len(api_key) > 0",
+      "test_function_2": "def test_api_key_length():\n    \"\"\"Test API key length validation.\"\"\"\n    api_key = 'sk-1234567890abcdef'\n    assert len(api_key) > 0",
+      "expected_output": {
+        "mergeable": true,
+        "confidence": 0.80,
+        "reason": "Both tests check the same thing with hardcoded values. Should be merged and refactored to use configuration or fixtures instead of hardcoded secrets.",
+        "merged_test_name": "test_api_key_length",
+        "concerns": ["Both have code smell (hardcoded credentials)"]
+      }
+    },
+    {
+      "id": "merge_033",
+      "test_function_1": "def test_pagination_first_page():\n    \"\"\"Test fetching first page.\"\"\"\n    result = get_paginated_data(page=1, per_page=10)\n    assert len(result) == 10\n    assert result.page == 1",
+      "test_function_2": "def test_pagination_last_page():\n    \"\"\"Test fetching last page.\"\"\"\n    result = get_paginated_data(page=10, per_page=10)\n    assert result.page == 10\n    assert result.has_next == False",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.90,
+        "reason": "Different pagination edge cases: first page vs last page. Both scenarios test different boundary conditions.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_034",
+      "test_function_1": "@pytest.mark.asyncio\nasync def test_concurrent_requests():\n    \"\"\"Test handling concurrent requests.\"\"\"\n    tasks = [api_call() for _ in range(10)]\n    results = await asyncio.gather(*tasks)\n    assert len(results) == 10",
+      "test_function_2": "@pytest.mark.asyncio\nasync def test_sequential_requests():\n    \"\"\"Test handling sequential requests.\"\"\"\n    results = []\n    for _ in range(10):\n        result = await api_call()\n        results.append(result)\n    assert len(results) == 10",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.90,
+        "reason": "Different execution patterns: concurrent vs sequential. These test different aspects of async behavior and potential race conditions.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    },
+    {
+      "id": "merge_035",
+      "test_function_1": "def test_validation_success():\n    \"\"\"Test validation with valid input.\"\"\"\n    result = validate_email('test@example.com')\n    assert result.is_valid == True\n    assert result.errors == []",
+      "test_function_2": "def test_validation_failure():\n    \"\"\"Test validation with invalid input.\"\"\"\n    result = validate_email('invalid-email')\n    assert result.is_valid == False\n    assert len(result.errors) > 0",
+      "expected_output": {
+        "mergeable": false,
+        "confidence": 0.95,
+        "reason": "Different validation outcomes: valid vs invalid input. Both test cases are essential for validation logic.",
+        "merged_test_name": null,
+        "concerns": []
+      }
+    }
+  ],
+  "statistics": {
+    "mergeable_count": 13,
+    "not_mergeable_count": 22,
+    "mergeable_percentage": 37.1
+  }
+}

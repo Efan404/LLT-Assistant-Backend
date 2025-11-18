@@ -1,0 +1,573 @@
+{
+  "description": "Ground truth dataset for test smell detection based on real pytest code patterns",
+  "version": "1.0",
+  "total_cases": 35,
+  "test_cases": [
+    {
+      "id": "smell_001",
+      "test_function": "def test_simple_assertion():\n    \"\"\"Test basic arithmetic operation.\"\"\"\n    result = 2 + 2\n    assert result == 4",
+      "expected_output": {
+        "smells": [],
+        "confidence": 0.95
+      },
+      "reasoning": "Clean test with no smells detected."
+    },
+    {
+      "id": "smell_002",
+      "test_function": "import time\n\ndef test_with_sleep():\n    \"\"\"Test with timing dependency.\"\"\"\n    time.sleep(0.1)\n    value = 42\n    assert value == 42",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "timing_dependency",
+            "line": 5,
+            "severity": "warning",
+            "description": "Test uses time.sleep() which creates timing dependency and makes tests slow",
+            "suggestion": "Remove sleep and use mocking or async/await patterns instead"
+          }
+        ],
+        "confidence": 0.95
+      },
+      "reasoning": "time.sleep() is a clear test smell indicating timing dependencies."
+    },
+    {
+      "id": "smell_003",
+      "test_function": "def test_hardcoded_values():\n    \"\"\"Test with hardcoded sensitive values.\"\"\"\n    api_key = 'sk-1234567890abcdef'\n    url = 'https://example.com'\n    assert len(api_key) > 0",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "hardcoded_credentials",
+            "line": 4,
+            "severity": "error",
+            "description": "Hardcoded API key found in test code",
+            "suggestion": "Use environment variables or test fixtures for sensitive data"
+          }
+        ],
+        "confidence": 0.90
+      },
+      "reasoning": "Hardcoded API keys are security risks even in tests."
+    },
+    {
+      "id": "smell_004",
+      "test_function": "@pytest.fixture\ndef unused_fixture():\n    \"\"\"This fixture is defined but never used.\"\"\"\n    return 'unused value'\n\ndef test_something():\n    \"\"\"Test without using the fixture.\"\"\"\n    assert True",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "unused_fixture",
+            "line": 2,
+            "severity": "info",
+            "description": "Fixture 'unused_fixture' is defined but never used in any test",
+            "suggestion": "Remove unused fixture or use it in tests"
+          }
+        ],
+        "confidence": 0.85
+      },
+      "reasoning": "Unused fixtures clutter the codebase and should be removed."
+    },
+    {
+      "id": "smell_005",
+      "test_function": "global_state = {}\n\ndef test_modifies_global_state():\n    \"\"\"Test that modifies global state.\"\"\"\n    global global_state\n    global_state['key'] = 'value'\n    assert global_state['key'] == 'value'",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "global_state_modification",
+            "line": 5,
+            "severity": "warning",
+            "description": "Test modifies global state which can cause test interdependencies",
+            "suggestion": "Use fixtures or setup/teardown to manage test state"
+          }
+        ],
+        "confidence": 0.85
+      },
+      "reasoning": "Modifying global state can cause tests to interfere with each other."
+    },
+    {
+      "id": "smell_006",
+      "test_function": "from unittest.mock import patch\n\n@patch('module1.function1')\n@patch('module2.function2')\n@patch('module3.function3')\n@patch('module4.function4')\n@patch('module5.function5')\ndef test_over_mocking(mock5, mock4, mock3, mock2, mock1):\n    \"\"\"Test with excessive mocking.\"\"\"\n    result = process_data()\n    assert result is not None",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "over_mocking",
+            "line": 3,
+            "severity": "warning",
+            "description": "Test uses 5 mock decorators which may indicate over-mocking",
+            "suggestion": "Consider refactoring code to reduce dependencies or use integration tests"
+          }
+        ],
+        "confidence": 0.80
+      },
+      "reasoning": "Excessive mocking (>4 mocks) often indicates poor design or over-testing implementation details."
+    },
+    {
+      "id": "smell_007",
+      "test_function": "def test_missing_cleanup():\n    \"\"\"Test that opens resources without cleanup.\"\"\"\n    file = open('test_data.txt', 'w')\n    file.write('test')\n    assert True",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "missing_cleanup",
+            "line": 4,
+            "severity": "warning",
+            "description": "File is opened but not closed, risking resource leaks",
+            "suggestion": "Use context manager (with statement) or add explicit cleanup"
+          }
+        ],
+        "confidence": 0.85
+      },
+      "reasoning": "Opening resources without cleanup can cause test failures and resource leaks."
+    },
+    {
+      "id": "smell_008",
+      "test_function": "def test_order_dependency_1():\n    \"\"\"First test in dependent sequence.\"\"\"\n    global setup_complete\n    setup_complete = True\n    assert True\n\ndef test_order_dependency_2():\n    \"\"\"Second test depends on first.\"\"\"\n    global setup_complete\n    assert setup_complete == True",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "test_order_dependency",
+            "line": 8,
+            "severity": "error",
+            "description": "Test depends on global state from another test, creating order dependency",
+            "suggestion": "Make tests independent by using fixtures or proper setup/teardown"
+          }
+        ],
+        "confidence": 0.80
+      },
+      "reasoning": "Tests depending on execution order are fragile and violate test independence."
+    },
+    {
+      "id": "smell_009",
+      "test_function": "@pytest.mark.parametrize('value,expected', [(2, 4), (3, 9), (4, 16)])\ndef test_square(value, expected):\n    \"\"\"Test squaring numbers.\"\"\"\n    assert value ** 2 == expected",
+      "expected_output": {
+        "smells": [],
+        "confidence": 0.95
+      },
+      "reasoning": "Clean parametrized test with no smells."
+    },
+    {
+      "id": "smell_010",
+      "test_function": "def test_with_print_debugging():\n    \"\"\"Test with print statements.\"\"\"\n    value = calculate(10)\n    print(f'Debug: value = {value}')\n    print('Checking result...')\n    assert value == 20",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "print_debugging",
+            "line": 5,
+            "severity": "info",
+            "description": "Test contains print statements used for debugging",
+            "suggestion": "Remove print statements and use proper logging or pytest's capsys fixture"
+          }
+        ],
+        "confidence": 0.90
+      },
+      "reasoning": "Print statements in tests indicate leftover debugging code."
+    },
+    {
+      "id": "smell_011",
+      "test_function": "def test_extremely_long_function():\n    \"\"\"Test with too many lines of code.\"\"\"\n    step1 = initialize()\n    step2 = process(step1)\n    step3 = transform(step2)\n    step4 = validate(step3)\n    step5 = serialize(step4)\n    step6 = compress(step5)\n    step7 = encrypt(step6)\n    step8 = transmit(step7)\n    step9 = receive(step8)\n    step10 = decrypt(step9)\n    step11 = decompress(step10)\n    step12 = deserialize(step11)\n    step13 = verify(step12)\n    step14 = finalize(step13)\n    assert step14 is not None",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "long_test",
+            "line": 3,
+            "severity": "info",
+            "description": "Test function is very long (15+ lines), making it hard to understand",
+            "suggestion": "Break into smaller, focused tests or extract helper functions"
+          }
+        ],
+        "confidence": 0.75
+      },
+      "reasoning": "Very long tests are hard to maintain and understand. Should be broken down."
+    },
+    {
+      "id": "smell_012",
+      "test_function": "def test_with_complex_try_except():\n    \"\"\"Test with overly broad exception handling.\"\"\"\n    try:\n        result = risky_operation()\n        assert result is not None\n    except:\n        pass",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "broad_exception_handling",
+            "line": 6,
+            "severity": "warning",
+            "description": "Bare except clause catches all exceptions, hiding errors",
+            "suggestion": "Catch specific exceptions or use pytest.raises for expected failures"
+          }
+        ],
+        "confidence": 0.90
+      },
+      "reasoning": "Bare except clauses hide errors and make debugging difficult."
+    },
+    {
+      "id": "smell_013",
+      "test_function": "def test_conditional_logic():\n    \"\"\"Test with conditional logic inside.\"\"\"\n    value = get_value()\n    if value > 10:\n        assert value < 100\n    else:\n        assert value >= 0",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "conditional_test_logic",
+            "line": 4,
+            "severity": "warning",
+            "description": "Test contains conditional logic which makes behavior unpredictable",
+            "suggestion": "Use parametrized tests or separate tests for different conditions"
+          }
+        ],
+        "confidence": 0.85
+      },
+      "reasoning": "Tests should have predictable, linear flow. Conditionals indicate tests should be split."
+    },
+    {
+      "id": "smell_014",
+      "test_function": "import requests\n\ndef test_external_api_call():\n    \"\"\"Test that makes real external API call.\"\"\"\n    response = requests.get('https://api.github.com/users/octocat')\n    assert response.status_code == 200",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "external_dependency",
+            "line": 5,
+            "severity": "warning",
+            "description": "Test makes real HTTP request to external API, creating network dependency",
+            "suggestion": "Mock external API calls to make tests reliable and fast"
+          }
+        ],
+        "confidence": 0.85
+      },
+      "reasoning": "Real external API calls make tests slow, flaky, and dependent on network/service availability."
+    },
+    {
+      "id": "smell_015",
+      "test_function": "def test_multiple_assertions_unrelated():\n    \"\"\"Test verifying multiple unrelated things.\"\"\"\n    user = create_user('John')\n    assert user.name == 'John'\n    \n    product = create_product('Widget')\n    assert product.price > 0\n    \n    order = create_order()\n    assert order.status == 'pending'",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "multiple_concerns",
+            "line": 3,
+            "severity": "info",
+            "description": "Test verifies multiple unrelated entities (user, product, order)",
+            "suggestion": "Split into separate focused tests for better isolation and clarity"
+          }
+        ],
+        "confidence": 0.75
+      },
+      "reasoning": "Tests should focus on one concern. Testing unrelated things makes failures harder to diagnose."
+    },
+    {
+      "id": "smell_016",
+      "test_function": "def test_ignored_test_result():\n    \"\"\"Test that ignores function result.\"\"\"\n    process_data([1, 2, 3])\n    cleanup_resources()\n    assert True",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "ignored_return_value",
+            "line": 4,
+            "severity": "warning",
+            "description": "Function result is ignored, test only verifies no exception occurred",
+            "suggestion": "Verify the actual return value or remove unnecessary function calls"
+          }
+        ],
+        "confidence": 0.80
+      },
+      "reasoning": "Calling functions without checking results provides weak validation."
+    },
+    {
+      "id": "smell_017",
+      "test_function": "def test_magic_numbers():\n    \"\"\"Test with unexplained magic numbers.\"\"\"\n    result = calculate_discount(1000, 0.15, 30, 0.05)\n    assert result == 127.5",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "magic_numbers",
+            "line": 4,
+            "severity": "info",
+            "description": "Test uses magic numbers (0.15, 30, 0.05) without explanation",
+            "suggestion": "Use named constants or variables to explain what numbers represent"
+          }
+        ],
+        "confidence": 0.70
+      },
+      "reasoning": "Magic numbers make tests hard to understand. Should use named constants."
+    },
+    {
+      "id": "smell_018",
+      "test_function": "@pytest.mark.asyncio\nasync def test_async_without_await():\n    \"\"\"Async test that doesn't await.\"\"\"\n    async_operation()\n    assert True",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "missing_await",
+            "line": 4,
+            "severity": "error",
+            "description": "Async function called without await, result is a coroutine object",
+            "suggestion": "Add await keyword: await async_operation()"
+          }
+        ],
+        "confidence": 0.95
+      },
+      "reasoning": "Async functions must be awaited, otherwise they don't execute."
+    },
+    {
+      "id": "smell_019",
+      "test_function": "def test_sleep_in_loop():\n    \"\"\"Test with sleep inside loop.\"\"\"\n    for i in range(5):\n        time.sleep(0.1)\n        process(i)\n    assert True",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "timing_dependency",
+            "line": 5,
+            "severity": "warning",
+            "description": "time.sleep() inside loop makes test unnecessarily slow",
+            "suggestion": "Remove sleep and use proper synchronization or mocking"
+          }
+        ],
+        "confidence": 0.95
+      },
+      "reasoning": "Sleep in loops multiplies the slowdown effect."
+    },
+    {
+      "id": "smell_020",
+      "test_function": "def test_database_without_transaction():\n    \"\"\"Test that modifies database without rollback.\"\"\"\n    db = Database()\n    db.insert('users', {'name': 'Test User'})\n    users = db.query('SELECT * FROM users WHERE name=\"Test User\"')\n    assert len(users) == 1",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "missing_cleanup",
+            "line": 4,
+            "severity": "warning",
+            "description": "Database modification without transaction or cleanup",
+            "suggestion": "Use transaction rollback or cleanup in teardown to avoid test pollution"
+          }
+        ],
+        "confidence": 0.80
+      },
+      "reasoning": "Database changes without cleanup can affect other tests."
+    },
+    {
+      "id": "smell_021",
+      "test_function": "def test_commented_out_code():\n    \"\"\"Test with commented out assertions.\"\"\"\n    result = calculate(10)\n    assert result > 0\n    # assert result == 20\n    # assert result < 100",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "commented_code",
+            "line": 5,
+            "severity": "info",
+            "description": "Test contains commented out assertions",
+            "suggestion": "Remove dead code or re-enable assertions if needed"
+          }
+        ],
+        "confidence": 0.75
+      },
+      "reasoning": "Commented code creates confusion about what should be tested."
+    },
+    {
+      "id": "smell_022",
+      "test_function": "def test_file_system_dependency():\n    \"\"\"Test that depends on specific file system state.\"\"\"\n    assert os.path.exists('/tmp/expected_file.txt')\n    content = open('/tmp/expected_file.txt').read()\n    assert 'expected' in content",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "file_system_dependency",
+            "line": 4,
+            "severity": "warning",
+            "description": "Test depends on pre-existing file system state",
+            "suggestion": "Create necessary files in test setup/fixture"
+          },
+          {
+            "type": "missing_cleanup",
+            "line": 5,
+            "severity": "warning",
+            "description": "File opened without using context manager",
+            "suggestion": "Use 'with open(...)' pattern"
+          }
+        ],
+        "confidence": 0.85
+      },
+      "reasoning": "Tests should create their own test data, not depend on external file system state."
+    },
+    {
+      "id": "smell_023",
+      "test_function": "def test_random_data():\n    \"\"\"Test with random values.\"\"\"\n    import random\n    value = random.randint(1, 100)\n    result = process(value)\n    assert result is not None",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "non_deterministic",
+            "line": 5,
+            "severity": "warning",
+            "description": "Test uses random values making it non-deterministic",
+            "suggestion": "Use fixed test values or seed random for reproducibility"
+          }
+        ],
+        "confidence": 0.85
+      },
+      "reasoning": "Random values in tests make failures hard to reproduce."
+    },
+    {
+      "id": "smell_024",
+      "test_function": "def test_environment_variable_dependency():\n    \"\"\"Test that depends on environment variable.\"\"\"\n    api_key = os.getenv('API_KEY')\n    assert api_key is not None\n    assert len(api_key) > 0",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "environment_dependency",
+            "line": 4,
+            "severity": "info",
+            "description": "Test depends on environment variable being set",
+            "suggestion": "Set environment variable in test setup or use monkeypatch fixture"
+          }
+        ],
+        "confidence": 0.75
+      },
+      "reasoning": "Environment dependencies can make tests fail in different environments."
+    },
+    {
+      "id": "smell_025",
+      "test_function": "def test_current_time_dependency():\n    \"\"\"Test that depends on current time.\"\"\"\n    from datetime import datetime\n    now = datetime.now()\n    assert now.hour >= 0 and now.hour < 24",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "time_dependency",
+            "line": 5,
+            "severity": "info",
+            "description": "Test behavior depends on current time",
+            "suggestion": "Mock datetime.now() for deterministic testing"
+          }
+        ],
+        "confidence": 0.75
+      },
+      "reasoning": "Time-dependent tests can behave differently at different times."
+    },
+    {
+      "id": "smell_026",
+      "test_function": "def test_with_fixture(sample_data):\n    \"\"\"Test using a fixture properly.\"\"\"\n    assert sample_data['name'] == 'Test User'\n    assert sample_data['age'] == 30",
+      "expected_output": {
+        "smells": [],
+        "confidence": 0.95
+      },
+      "reasoning": "Clean test using fixtures properly, no smells."
+    },
+    {
+      "id": "smell_027",
+      "test_function": "def test_duplicate_setup():\n    \"\"\"Test with duplicated setup logic.\"\"\"\n    client = LLMClient(api_key='test-key', base_url='https://api.test.com')\n    client.timeout = 30.0\n    client.max_retries = 3\n    result = client.process()\n    assert result is not None",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "duplicate_setup",
+            "line": 4,
+            "severity": "info",
+            "description": "Setup logic could be extracted to a fixture",
+            "suggestion": "Create a fixture for LLMClient configuration"
+          }
+        ],
+        "confidence": 0.70
+      },
+      "reasoning": "Repeated setup code across tests should be moved to fixtures."
+    },
+    {
+      "id": "smell_028",
+      "test_function": "@pytest.mark.skip(reason='TODO: implement later')\ndef test_placeholder():\n    \"\"\"Placeholder test to be implemented.\"\"\"\n    pass",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "skipped_test",
+            "line": 2,
+            "severity": "info",
+            "description": "Test is skipped with TODO comment",
+            "suggestion": "Either implement the test or remove it if not needed"
+          }
+        ],
+        "confidence": 0.85
+      },
+      "reasoning": "Skipped tests with TODOs indicate incomplete test coverage."
+    },
+    {
+      "id": "smell_029",
+      "test_function": "def test_assertion_in_loop():\n    \"\"\"Test with assertion inside loop.\"\"\"\n    results = [process(i) for i in range(10)]\n    for result in results:\n        assert result > 0",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "assertion_in_loop",
+            "line": 5,
+            "severity": "info",
+            "description": "Assertion in loop stops at first failure, hiding other issues",
+            "suggestion": "Collect all failures or use parametrized tests"
+          }
+        ],
+        "confidence": 0.75
+      },
+      "reasoning": "Assertions in loops stop at first failure, making it hard to see all problems."
+    },
+    {
+      "id": "smell_030",
+      "test_function": "def test_sensitive_data_in_logs():\n    \"\"\"Test that logs sensitive data.\"\"\"\n    password = 'secret123'\n    logger.debug(f'Testing with password: {password}')\n    result = authenticate('user', password)\n    assert result.success",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "sensitive_data_exposure",
+            "line": 5,
+            "severity": "warning",
+            "description": "Sensitive data (password) logged in test",
+            "suggestion": "Remove or redact sensitive data from log messages"
+          }
+        ],
+        "confidence": 0.80
+      },
+      "reasoning": "Logging sensitive data even in tests is a security risk."
+    },
+    {
+      "id": "smell_031",
+      "test_function": "class TestSuite:\n    \"\"\"Test class without proper isolation.\"\"\"\n    shared_data = []\n    \n    def test_first(self):\n        self.shared_data.append(1)\n        assert len(self.shared_data) == 1\n    \n    def test_second(self):\n        self.shared_data.append(2)\n        assert len(self.shared_data) == 2",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "test_order_dependency",
+            "line": 4,
+            "severity": "error",
+            "description": "Class attribute 'shared_data' is mutated, creating test dependencies",
+            "suggestion": "Use fixtures or setUp/tearDown to ensure test isolation"
+          }
+        ],
+        "confidence": 0.85
+      },
+      "reasoning": "Shared mutable class attributes create test interdependencies."
+    },
+    {
+      "id": "smell_032",
+      "test_function": "def test_subprocess_call():\n    \"\"\"Test that spawns subprocess.\"\"\"\n    import subprocess\n    result = subprocess.run(['ls', '-la'], capture_output=True)\n    assert result.returncode == 0",
+      "expected_output": {
+        "smells": [
+          {
+            "type": "subprocess_dependency",
+            "line": 5,
+            "severity": "warning",
+            "description": "Test spawns subprocess, creating system dependency",
+            "suggestion": "Mock subprocess calls or use integration test suite"
+          }
+        ],
+        "confidence": 0.80
+      },
+      "reasoning": "Subprocess calls make tests platform-dependent and slower."
+    },
+    {
+      "id": "smell_033",
+      "test_function": "@pytest.mark.asyncio\nasync def test_proper_async():\n    \"\"\"Proper async test.\"\"\"\n    result = await async_operation()\n    assert result.status == 'success'",
+      "expected_output": {
+        "smells": [],
+        "confidence": 0.95
+      },
+      "reasoning": "Properly structured async test with no smells."
+    },
+    {
+      "id": "smell_034",
+      "test_function": "def test_with_temp_file_cleanup():\n    \"\"\"Test that properly cleans up temp files.\"\"\"\n    import tempfile\n    with tempfile.NamedTemporaryFile(mode='w', delete=True) as f:\n        f.write('test data')\n        f.flush()\n        assert os.path.exists(f.name)",
+      "expected_output": {
+        "smells": [],
+        "confidence": 0.90
+      },
+      "reasoning": "Proper use of context manager for resource cleanup, no smells."
+    },
+    {
+      "id": "smell_035",
+      "test_function": "def test_comprehensive_mocking():\n    \"\"\"Test with appropriate mocking level.\"\"\"\n    with patch('app.external_api.fetch_data') as mock_fetch:\n        mock_fetch.return_value = {'status': 'ok'}\n        result = process_external_data()\n        assert result.success\n        mock_fetch.assert_called_once()",
+      "expected_output": {
+        "smells": [],
+        "confidence": 0.90
+      },
+      "reasoning": "Appropriate level of mocking (1 mock) with verification, no smells."
+    }
+  ],
+  "statistics": {
+    "tests_with_smells": 27,
+    "tests_without_smells": 8,
+    "percentage_with_smells": 77.1,
+    "most_common_smells": [
+      "timing_dependency",
+      "missing_cleanup",
+      "test_order_dependency",
+      "over_mocking",
+      "hardcoded_credentials"
+    ]
+  }
+}

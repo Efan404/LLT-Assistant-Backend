@@ -1,0 +1,545 @@
+{
+  "description": "Ground truth dataset for assertion quality analysis based on real pytest code patterns",
+  "version": "1.0",
+  "total_cases": 35,
+  "test_cases": [
+    {
+      "id": "assert_001",
+      "test_function": "def test_simple_assertion():\n    \"\"\"Test basic arithmetic operation.\"\"\"\n    result = 2 + 2\n    assert result == 4",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "good",
+        "confidence": 0.90
+      },
+      "reasoning": "Clear, specific assertion that verifies the expected behavior. No issues."
+    },
+    {
+      "id": "assert_002",
+      "test_function": "def test_missing_assertion():\n    \"\"\"Test that performs operations but has no assertions.\"\"\"\n    value = 10\n    result = value * 2\n    calculated = result + 5",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "missing_assertion",
+            "line": 4,
+            "severity": "error",
+            "description": "Test performs calculations but does not verify any results with assertions",
+            "suggestion": "Add assertion to verify 'calculated' equals expected value (25)"
+          }
+        ],
+        "overall_quality": "poor",
+        "confidence": 0.95
+      },
+      "reasoning": "Test does computation but never verifies results. Useless test."
+    },
+    {
+      "id": "assert_003",
+      "test_function": "def test_trivial_assertion():\n    \"\"\"Test with trivial always-true assertion.\"\"\"\n    assert True\n    assert 1 == 1",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "trivial_assertion",
+            "line": 3,
+            "severity": "error",
+            "description": "Assertion 'assert True' always passes and provides no value",
+            "suggestion": "Remove trivial assertion or replace with meaningful test"
+          },
+          {
+            "type": "trivial_assertion",
+            "line": 4,
+            "severity": "error",
+            "description": "Assertion 'assert 1 == 1' always passes and provides no value",
+            "suggestion": "Remove trivial assertion or replace with meaningful test"
+          }
+        ],
+        "overall_quality": "poor",
+        "confidence": 0.95
+      },
+      "reasoning": "Assertions that always pass provide no validation value."
+    },
+    {
+      "id": "assert_004",
+      "test_function": "def test_redundant_assertions():\n    \"\"\"Test with duplicate assertions.\"\"\"\n    value = 42\n    assert value == 42\n    assert value == 42",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "redundant_assertion",
+            "line": 5,
+            "severity": "warning",
+            "description": "Assertion 'assert value == 42' is duplicated on line 4",
+            "suggestion": "Remove duplicate assertion on line 5"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.95
+      },
+      "reasoning": "Exact duplicate assertion adds no value and clutters the test."
+    },
+    {
+      "id": "assert_005",
+      "test_function": "def test_with_fixture(sample_data):\n    \"\"\"Test using a fixture.\"\"\"\n    assert sample_data['name'] == 'Test User'\n    assert sample_data['age'] == 30\n    assert sample_data['email'] == 'test@example.com'",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "good",
+        "confidence": 0.90
+      },
+      "reasoning": "Multiple specific assertions verify different aspects of the data. All are meaningful."
+    },
+    {
+      "id": "assert_006",
+      "test_function": "def test_weak_assertion():\n    \"\"\"Test with weak assertion.\"\"\"\n    result = calculate_total([10, 20, 30])\n    assert result is not None",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "weak_assertion",
+            "line": 4,
+            "severity": "warning",
+            "description": "Assertion only checks that result exists, not its correctness",
+            "suggestion": "Assert the actual expected value: assert result == 60"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.85
+      },
+      "reasoning": "Assertion is too weak - should verify the actual calculated value, not just existence."
+    },
+    {
+      "id": "assert_007",
+      "test_function": "def test_only_type_check():\n    \"\"\"Test that only verifies type.\"\"\"\n    result = get_user_data()\n    assert isinstance(result, dict)",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "weak_assertion",
+            "line": 4,
+            "severity": "warning",
+            "description": "Only type is verified, not the actual content or structure",
+            "suggestion": "Add assertions to verify expected keys and values in the dictionary"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.80
+      },
+      "reasoning": "Type checking alone is insufficient - should also verify content."
+    },
+    {
+      "id": "assert_008",
+      "test_function": "def test_string_operations():\n    \"\"\"Test string manipulation.\"\"\"\n    text = \"hello world\"\n    assert text.upper() == \"HELLO WORLD\"\n    assert len(text) == 11",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "good",
+        "confidence": 0.90
+      },
+      "reasoning": "Two meaningful assertions verify different aspects of string behavior."
+    },
+    {
+      "id": "assert_009",
+      "test_function": "@pytest.mark.asyncio\nasync def test_successful_chat_completion(sample_messages, successful_response):\n    \"\"\"Test successful chat completion request.\"\"\"\n    client = LLMClient(api_key=\"test-key\")\n    with patch.object(client.client, \"post\", return_value=successful_response):\n        response = await client.chat_completion(sample_messages)\n        assert response is not None\n        assert 'choices' in response\n        assert response['usage']['total_tokens'] == 150",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "good",
+        "confidence": 0.85
+      },
+      "reasoning": "Multiple assertions verify response structure and specific values. Comprehensive coverage."
+    },
+    {
+      "id": "assert_010",
+      "test_function": "def test_error_handling():\n    \"\"\"Test error handling for invalid input.\"\"\"\n    with pytest.raises(ValueError):\n        process_data(None)",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "good",
+        "confidence": 0.90
+      },
+      "reasoning": "Properly tests exception raising behavior. Appropriate for error testing."
+    },
+    {
+      "id": "assert_011",
+      "test_function": "def test_error_without_message_check():\n    \"\"\"Test error handling without checking message.\"\"\"\n    with pytest.raises(ValueError):\n        validate_email('invalid')",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "weak_assertion",
+            "line": 3,
+            "severity": "info",
+            "description": "Exception is caught but message is not validated",
+            "suggestion": "Consider using pytest.raises with match parameter to verify error message"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.75
+      },
+      "reasoning": "Could be stronger by validating the error message, but acceptable for basic error testing."
+    },
+    {
+      "id": "assert_012",
+      "test_function": "def test_complex_redundancy():\n    \"\"\"Test with complex redundant logic.\"\"\"\n    data = {'key': 'value'}\n    assert data['key'] == 'value'\n    assert 'key' in data\n    assert data.get('key') == 'value'",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "redundant_assertion",
+            "line": 5,
+            "severity": "warning",
+            "description": "Assertion 'assert data.get('key') == 'value'' is redundant with line 4",
+            "suggestion": "Remove redundant assertion - line 4 already verifies this"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.85
+      },
+      "reasoning": "Lines 4 and 6 test the same thing in different ways. Line 5 adds some value (checks key existence)."
+    },
+    {
+      "id": "assert_013",
+      "test_function": "def test_client_initialization(llm_client_config):\n    \"\"\"Test that LLM client initializes with correct configuration.\"\"\"\n    client = LLMClient(**llm_client_config)\n    assert client.api_key == \"test-api-key\"\n    assert client.base_url == \"https://api.test.com/v1\"\n    assert client.model == \"test-model\"\n    assert client.timeout == 30.0\n    assert client.max_retries == 3\n    assert client.client is not None",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "excellent",
+        "confidence": 0.95
+      },
+      "reasoning": "Comprehensive assertions verify all aspects of initialization. Thorough and specific."
+    },
+    {
+      "id": "assert_014",
+      "test_function": "def test_empty():\n    \"\"\"Empty test with no assertions.\"\"\"\n    pass",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "missing_assertion",
+            "line": 3,
+            "severity": "error",
+            "description": "Test contains no assertions and performs no validation",
+            "suggestion": "Either implement the test with assertions or remove it"
+          }
+        ],
+        "overall_quality": "poor",
+        "confidence": 0.95
+      },
+      "reasoning": "Empty test provides no value and should be removed or implemented."
+    },
+    {
+      "id": "assert_015",
+      "test_function": "def test_only_length_check():\n    \"\"\"Test that only checks length.\"\"\"\n    result = process_items([1, 2, 3, 4, 5])\n    assert len(result) == 5",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "weak_assertion",
+            "line": 4,
+            "severity": "warning",
+            "description": "Only verifies length, not the actual content or correctness of processed items",
+            "suggestion": "Add assertions to verify the actual processed values or properties"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.80
+      },
+      "reasoning": "Length check alone doesn't verify that processing worked correctly."
+    },
+    {
+      "id": "assert_016",
+      "test_function": "def test_boolean_flag():\n    \"\"\"Test that only checks a boolean flag.\"\"\"\n    result = authenticate('user', 'password')\n    assert result.success == True",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "weak_assertion",
+            "line": 4,
+            "severity": "info",
+            "description": "Only success flag is checked, not other important result properties",
+            "suggestion": "Consider verifying user_id, token, or other authentication result details"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.75
+      },
+      "reasoning": "For authentication, should verify more than just success flag (e.g., user ID, token)."
+    },
+    {
+      "id": "assert_017",
+      "test_function": "def test_multiple_issues():\n    \"\"\"Test with multiple quality issues.\"\"\"\n    assert True\n    value = calculate(10, 20)\n    assert value == 30\n    assert value == 30\n    unused_result = process_data()",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "trivial_assertion",
+            "line": 3,
+            "severity": "error",
+            "description": "Assertion 'assert True' always passes and provides no value",
+            "suggestion": "Remove trivial assertion"
+          },
+          {
+            "type": "redundant_assertion",
+            "line": 5,
+            "severity": "warning",
+            "description": "Assertion 'assert value == 30' is duplicated on line 4",
+            "suggestion": "Remove duplicate assertion on line 5"
+          },
+          {
+            "type": "missing_assertion",
+            "line": 6,
+            "severity": "warning",
+            "description": "Variable 'unused_result' is computed but never verified",
+            "suggestion": "Add assertion for unused_result or remove the computation"
+          }
+        ],
+        "overall_quality": "poor",
+        "confidence": 0.90
+      },
+      "reasoning": "Multiple issues: trivial assertion, redundancy, and unused computation."
+    },
+    {
+      "id": "assert_018",
+      "test_function": "@pytest.mark.parametrize('value,expected', [(2, 4), (3, 9), (4, 16)])\ndef test_square(value, expected):\n    \"\"\"Test squaring numbers.\"\"\"\n    assert value ** 2 == expected",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "excellent",
+        "confidence": 0.95
+      },
+      "reasoning": "Parametrized test with clear assertion. Efficient way to test multiple cases."
+    },
+    {
+      "id": "assert_019",
+      "test_function": "def test_list_operations():\n    \"\"\"Test basic list operations.\"\"\"\n    lst = [1, 2, 3]\n    lst.append(4)\n    assert len(lst) == 4\n    assert lst[-1] == 4\n    assert 4 in lst",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "redundant_assertion",
+            "line": 7,
+            "severity": "info",
+            "description": "Assertion 'assert 4 in lst' is somewhat redundant with line 6",
+            "suggestion": "Line 6 already verifies the last element is 4; 'in' check adds minimal value"
+          }
+        ],
+        "overall_quality": "good",
+        "confidence": 0.75
+      },
+      "reasoning": "Mostly good assertions, though the last one is somewhat redundant with the previous."
+    },
+    {
+      "id": "assert_020",
+      "test_function": "def test_json_response():\n    \"\"\"Test JSON response parsing.\"\"\"\n    response = parse_json('{\"status\": \"success\", \"data\": {\"id\": 123}}')\n    assert response['status'] == 'success'\n    assert response['data']['id'] == 123",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "good",
+        "confidence": 0.90
+      },
+      "reasoning": "Specific assertions verify nested JSON structure and values. Good coverage."
+    },
+    {
+      "id": "assert_021",
+      "test_function": "def test_calculation_range():\n    \"\"\"Test calculation produces value in expected range.\"\"\"\n    result = calculate_percentage(45, 100)\n    assert result > 0\n    assert result < 100",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "weak_assertion",
+            "line": 4,
+            "severity": "warning",
+            "description": "Range check is too broad - should verify exact value",
+            "suggestion": "Assert the exact expected value: assert result == 45.0"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.80
+      },
+      "reasoning": "Range checks can be useful but in this case the exact value should be verified."
+    },
+    {
+      "id": "assert_022",
+      "test_function": "def test_response_structure():\n    \"\"\"Test response has correct structure.\"\"\"\n    response = api_call()\n    assert 'status' in response\n    assert 'data' in response\n    assert 'timestamp' in response",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "weak_assertion",
+            "line": 4,
+            "severity": "info",
+            "description": "Only verifies key presence, not values or types",
+            "suggestion": "Consider also checking expected values or types of these fields"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.75
+      },
+      "reasoning": "Structure verification is valuable but could be stronger by also checking values."
+    },
+    {
+      "id": "assert_023",
+      "test_function": "def test_sorting():\n    \"\"\"Test sorting functionality.\"\"\"\n    data = [3, 1, 2]\n    result = sort(data)\n    assert result == [1, 2, 3]",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "good",
+        "confidence": 0.90
+      },
+      "reasoning": "Clear assertion verifying exact sorted output. Appropriate and sufficient."
+    },
+    {
+      "id": "assert_024",
+      "test_function": "def test_database_query():\n    \"\"\"Test database query execution.\"\"\"\n    db = Database('test.db')\n    result = db.query('SELECT * FROM users')\n    assert result",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "weak_assertion",
+            "line": 5,
+            "severity": "warning",
+            "description": "Boolean assertion is too vague - doesn't verify query results",
+            "suggestion": "Verify specific properties: assert len(result) > 0 or check actual data"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.85
+      },
+      "reasoning": "'assert result' is too vague - should verify actual query results."
+    },
+    {
+      "id": "assert_025",
+      "test_function": "def test_cache_operations():\n    \"\"\"Test cache set and get.\"\"\"\n    cache = Cache()\n    cache.set('key', 'value')\n    result = cache.get('key')\n    assert result == 'value'\n    assert cache.exists('key') == True\n    assert cache.size() == 1",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "excellent",
+        "confidence": 0.95
+      },
+      "reasoning": "Comprehensive assertions verify multiple aspects of cache behavior. Thorough testing."
+    },
+    {
+      "id": "assert_026",
+      "test_function": "def test_user_creation():\n    \"\"\"Test creating a new user.\"\"\"\n    user = create_user(name='John', email='john@example.com')\n    assert user",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "weak_assertion",
+            "line": 4,
+            "severity": "warning",
+            "description": "Only verifies user object exists, not its properties",
+            "suggestion": "Verify user.name == 'John' and user.email == 'john@example.com'"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.85
+      },
+      "reasoning": "Should verify that user was created with correct attributes, not just that it exists."
+    },
+    {
+      "id": "assert_027",
+      "test_function": "def test_file_operations():\n    \"\"\"Test file read and write.\"\"\"\n    write_file('test.txt', 'Hello World')\n    content = read_file('test.txt')\n    assert content == 'Hello World'\n    assert os.path.exists('test.txt')",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "good",
+        "confidence": 0.90
+      },
+      "reasoning": "Verifies both content correctness and file existence. Good coverage."
+    },
+    {
+      "id": "assert_028",
+      "test_function": "def test_validation_with_good_error_check():\n    \"\"\"Test validation with comprehensive error checking.\"\"\"\n    with pytest.raises(ValidationError, match='Invalid email format'):\n        validate_email('not-an-email')",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "excellent",
+        "confidence": 0.95
+      },
+      "reasoning": "Tests both exception type and message. Comprehensive error validation."
+    },
+    {
+      "id": "assert_029",
+      "test_function": "def test_retry_logic():\n    \"\"\"Test retry mechanism.\"\"\"\n    with patch('requests.get') as mock_get:\n        mock_get.side_effect = [ConnectionError(), Mock(status_code=200)]\n        result = fetch_with_retry('http://example.com')\n        assert result.status_code == 200\n        assert mock_get.call_count == 2",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "excellent",
+        "confidence": 0.95
+      },
+      "reasoning": "Verifies both the result and the retry behavior. Comprehensive test."
+    },
+    {
+      "id": "assert_030",
+      "test_function": "def test_authentication_partial():\n    \"\"\"Test authentication but only check one aspect.\"\"\"\n    result = authenticate('user', 'password')\n    assert result.user_id == 123",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "weak_assertion",
+            "line": 4,
+            "severity": "info",
+            "description": "Only verifies user_id, missing checks for success status, token, etc.",
+            "suggestion": "Add assertions for result.success, result.token, and other auth properties"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.75
+      },
+      "reasoning": "Authentication results should be verified more comprehensively."
+    },
+    {
+      "id": "assert_031",
+      "test_function": "def test_pagination():\n    \"\"\"Test pagination functionality.\"\"\"\n    result = get_page(page=1, size=10)\n    assert len(result.items) == 10\n    assert result.page == 1\n    assert result.total_pages > 0\n    assert result.has_next in [True, False]",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "trivial_assertion",
+            "line": 7,
+            "severity": "info",
+            "description": "Assertion 'result.has_next in [True, False]' is trivial - boolean is always True or False",
+            "suggestion": "Either verify the specific expected value or remove this assertion"
+          }
+        ],
+        "overall_quality": "good",
+        "confidence": 0.85
+      },
+      "reasoning": "Mostly good assertions, but the last one is trivial (boolean must be True or False)."
+    },
+    {
+      "id": "assert_032",
+      "test_function": "def test_date_formatting():\n    \"\"\"Test date formatting.\"\"\"\n    from datetime import datetime\n    date = datetime(2025, 1, 15)\n    result = format_date(date)\n    assert '2025' in result\n    assert '01' in result or '1' in result",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "weak_assertion",
+            "line": 6,
+            "severity": "warning",
+            "description": "Substring checks are too loose - don't verify actual format",
+            "suggestion": "Assert exact formatted string: assert result == '2025-01-15' or expected format"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.80
+      },
+      "reasoning": "Substring checks don't properly verify the formatting - should check exact output."
+    },
+    {
+      "id": "assert_033",
+      "test_function": "@pytest.mark.asyncio\nasync def test_concurrent_operations():\n    \"\"\"Test concurrent async operations.\"\"\"\n    tasks = [async_operation(i) for i in range(10)]\n    results = await asyncio.gather(*tasks)\n    assert len(results) == 10\n    assert all(r.success for r in results)",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "good",
+        "confidence": 0.90
+      },
+      "reasoning": "Verifies both count and success of all operations. Good concurrent test pattern."
+    },
+    {
+      "id": "assert_034",
+      "test_function": "def test_config_loading():\n    \"\"\"Test configuration loading.\"\"\"\n    config = load_config('config.yaml')\n    assert config is not None\n    assert type(config) == dict",
+      "expected_output": {
+        "issues": [
+          {
+            "type": "weak_assertion",
+            "line": 4,
+            "severity": "warning",
+            "description": "Only verifies config exists and is a dict, not actual configuration values",
+            "suggestion": "Verify expected config keys and values exist"
+          }
+        ],
+        "overall_quality": "fair",
+        "confidence": 0.80
+      },
+      "reasoning": "Should verify actual configuration content, not just type."
+    },
+    {
+      "id": "assert_035",
+      "test_function": "def test_comprehensive_api_response():\n    \"\"\"Test API response comprehensively.\"\"\"\n    response = api_call('/users/123')\n    assert response.status_code == 200\n    assert response.headers['Content-Type'] == 'application/json'\n    data = response.json()\n    assert data['id'] == 123\n    assert 'name' in data\n    assert 'email' in data\n    assert '@' in data['email']",
+      "expected_output": {
+        "issues": [],
+        "overall_quality": "excellent",
+        "confidence": 0.95
+      },
+      "reasoning": "Comprehensive assertions verify status, headers, and response data structure/content. Excellent coverage."
+    }
+  ],
+  "statistics": {
+    "excellent_quality_count": 7,
+    "good_quality_count": 11,
+    "fair_quality_count": 15,
+    "poor_quality_count": 2,
+    "avg_issues_per_test": 0.83
+  }
+}

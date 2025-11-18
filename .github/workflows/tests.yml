@@ -168,3 +168,43 @@ jobs:
         run: |
           pytest tests/ -v -m "llm or requires_api_key" --tb=short
         continue-on-error: true
+
+  # Run LLM evaluation tests to measure quality
+  llm-evaluation:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run LLM evaluation tests
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          EVALUATION_SAMPLE_SIZE: "10"
+        run: |
+          pytest tests/evaluation/ -v -m llm_evaluation --tb=short
+        continue-on-error: true
+
+      - name: Upload evaluation results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evaluation-results
+          path: |
+            tests/evaluation/reports/
+            htmlcov/
