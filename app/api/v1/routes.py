@@ -141,17 +141,25 @@ async def get_analysis_modes() -> Dict[str, Any]:
             {
                 "id": AnalysisMode.RULES_ONLY.value,
                 "name": "Rules Only",
-                "description": "Fast analysis using only deterministic rules (recommended for quick checks)",
+                "description": (
+                    "Fast analysis using only deterministic rules "
+                    "(recommended for quick checks)"
+                ),
             },
             {
                 "id": AnalysisMode.LLM_ONLY.value,
                 "name": "LLM Only",
-                "description": "Deep analysis using only AI (slower but more comprehensive)",
+                "description": (
+                    "Deep analysis using only AI (slower but more comprehensive)"
+                ),
             },
             {
                 "id": AnalysisMode.HYBRID.value,
                 "name": "Hybrid",
-                "description": "Combines fast rule-based analysis with AI for uncertain cases (recommended)",
+                "description": (
+                    "Combines fast rule-based analysis with AI for "
+                    "uncertain cases (recommended)"
+                ),
             },
         ]
     }

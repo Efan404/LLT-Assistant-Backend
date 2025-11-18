@@ -100,7 +100,10 @@ class RedundantAssertionRule(Rule):
                     action=ACTION_REMOVE,
                     old_code=assertion.source_code,
                     new_code=None,
-                    explanation=f"This assertion is identical to the one at line {original.line_number}. Remove to reduce redundancy.",
+                    explanation=(
+                        f"This assertion is identical to the one at line "
+                        f"{original.line_number}. Remove to reduce redundancy."
+                    ),
                 )
 
                 issues.append(
@@ -269,7 +272,10 @@ class UnusedFixtureRule(Rule):
             if fixture.name not in used_fixtures:
                 suggestion = IssueSuggestion(
                     action=ACTION_REMOVE,
-                    old_code=f"@pytest.fixture\ndef {fixture.name}():\n    # fixture implementation",
+                    old_code=(
+                        f"@pytest.fixture\ndef {fixture.name}():\n"
+                        f"    # fixture implementation"
+                    ),
                     new_code=None,
                     explanation="Remove unused fixture to reduce code complexity.",
                 )

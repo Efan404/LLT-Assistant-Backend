@@ -47,9 +47,7 @@ class IssueAggregator:
 
         return all_issues
 
-    def _is_duplicate_issue(
-        self, issue: Issue, existing_issues: List[Issue]
-    ) -> bool:
+    def _is_duplicate_issue(self, issue: Issue, existing_issues: List[Issue]) -> bool:
         """
         Check if an issue is a duplicate of existing issues.
 

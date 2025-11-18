@@ -12,7 +12,6 @@ from typing import Dict, List, Optional
 
 from app.analyzers.ast_parser import ParsedTestFile, parse_test_file
 from app.api.v1.schemas import AnalyzeResponse, FileInput
-from app.core.constants import AnalysisMode
 from app.core.issue_aggregator import IssueAggregator
 from app.core.metrics_calculator import MetricsCalculator
 from app.core.protocols import LLMAnalyzerProtocol, RuleEngineProtocol
@@ -107,7 +106,8 @@ class TestAnalyzer:
             )
 
             logger.info(
-                f"Analysis {analysis_id} completed: {len(all_issues)} issues found in {metrics.analysis_time_ms}ms"
+                f"Analysis {analysis_id} completed: {len(all_issues)} issues found "
+                f"in {metrics.analysis_time_ms}ms"
             )
 
             return AnalyzeResponse(

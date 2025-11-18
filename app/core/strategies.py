@@ -287,8 +287,6 @@ def get_strategy(mode: str) -> AnalysisStrategy:
     strategy_class = STRATEGY_REGISTRY.get(mode)
     if strategy_class is None:
         valid_modes = ", ".join(STRATEGY_REGISTRY.keys())
-        raise ValueError(
-            f"Invalid analysis mode '{mode}'. Valid modes: {valid_modes}"
-        )
+        raise ValueError(f"Invalid analysis mode '{mode}'. Valid modes: {valid_modes}")
 
     return strategy_class()
