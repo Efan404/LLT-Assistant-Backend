@@ -66,14 +66,21 @@ def sample_parsed_file():
         test_functions=[
             TestFunctionInfo(
                 name="test_addition",
-                lineno=2,
+                line_number=2,
                 decorators=[],
                 parameters=[],
                 assertions=[
                     AssertionInfo(
-                        lineno=4, assertion_type="equality", values=["result", "2"]
+                        line_number=4,
+                        column=4,
+                        assertion_type="equality",
+                        operands=["result", "2"],
+                        is_trivial=False,
+                        source_code="assert result == 2",
                     )
                 ],
+                has_docstring=False,
+                body_lines=(2, 4),
                 source_code="def test_addition():\n    result = 1 + 1\n    assert result == 2\n",
             )
         ],
@@ -274,18 +281,22 @@ class TestTestAnalyzer:
         """Test identification of similar function names."""
         func1 = TestFunctionInfo(
             name="test_user_creation",
-            lineno=1,
+            line_number=1,
             decorators=[],
             parameters=[],
             assertions=[],
+            has_docstring=False,
+            body_lines=(1, 1),
             source_code="def test_user_creation(): pass",
         )
         func2 = TestFunctionInfo(
             name="test_user_deletion",
-            lineno=5,
+            line_number=5,
             decorators=[],
             parameters=[],
             assertions=[],
+            has_docstring=False,
+            body_lines=(5, 5),
             source_code="def test_user_deletion(): pass",
         )
 
@@ -310,15 +321,45 @@ class TestTestAnalyzer:
         """Test identification of functions with complex assertions."""
         func = TestFunctionInfo(
             name="test_complex",
-            lineno=1,
+            line_number=1,
             decorators=[],
             parameters=[],
             assertions=[
-                AssertionInfo(lineno=2, assertion_type="equality", values=["a", "1"]),
-                AssertionInfo(lineno=3, assertion_type="equality", values=["b", "2"]),
-                AssertionInfo(lineno=4, assertion_type="equality", values=["c", "3"]),
-                AssertionInfo(lineno=5, assertion_type="equality", values=["d", "4"]),
+                AssertionInfo(
+                    line_number=2,
+                    column=4,
+                    assertion_type="equality",
+                    operands=["a", "1"],
+                    is_trivial=False,
+                    source_code="assert a == 1",
+                ),
+                AssertionInfo(
+                    line_number=3,
+                    column=4,
+                    assertion_type="equality",
+                    operands=["b", "2"],
+                    is_trivial=False,
+                    source_code="assert b == 2",
+                ),
+                AssertionInfo(
+                    line_number=4,
+                    column=4,
+                    assertion_type="equality",
+                    operands=["c", "3"],
+                    is_trivial=False,
+                    source_code="assert c == 3",
+                ),
+                AssertionInfo(
+                    line_number=5,
+                    column=4,
+                    assertion_type="equality",
+                    operands=["d", "4"],
+                    is_trivial=False,
+                    source_code="assert d == 4",
+                ),
             ],
+            has_docstring=False,
+            body_lines=(1, 5),
             source_code="def test_complex(): pass",
         )
 
@@ -341,10 +382,12 @@ class TestTestAnalyzer:
         """Test identification of unusual patterns like time.sleep."""
         func = TestFunctionInfo(
             name="test_with_sleep",
-            lineno=1,
+            line_number=1,
             decorators=[],
             parameters=[],
             assertions=[],
+            has_docstring=False,
+            body_lines=(1, 3),
             source_code="def test_with_sleep():\n    time.sleep(1)\n    assert True",
         )
 

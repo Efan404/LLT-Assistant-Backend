@@ -58,7 +58,9 @@ class Issue(BaseModel):
     detected_by: Literal["rule_engine", "llm"] = Field(
         description="Detection method used"
     )
-    suggestion: IssueSuggestion = Field(description="Fix suggestion for the issue")
+    suggestion: Optional[IssueSuggestion] = Field(
+        default=None, description="Fix suggestion for the issue"
+    )
 
 
 class AnalysisMetrics(BaseModel):

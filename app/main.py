@@ -31,8 +31,8 @@ app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description="FastAPI backend for pytest test analysis using hybrid rule engine + LLM approach",
-    docs_url="/docs" if settings.debug else None,
-    redoc_url="/redoc" if settings.debug else None,
+    docs_url="/docs",
+    redoc_url="/redoc",
     lifespan=lifespan,
 )
 

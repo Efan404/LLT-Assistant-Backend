@@ -107,9 +107,12 @@ class RedundantAssertionRule(Rule):
 
     def _get_assertion_key(self, assertion: AssertionInfo) -> str:
         """Get a canonical key for comparing assertions."""
-        # Use the source code as a simple comparison key
-        # In a more sophisticated implementation, we could parse the AST
-        return assertion.source_code.strip()
+        # Remove comments and normalize whitespace for comparison
+        # Split on '#' to remove inline comments
+        code_without_comment = assertion.source_code.split("#")[0].strip()
+        # Normalize whitespace
+        normalized = " ".join(code_without_comment.split())
+        return normalized
 
 
 class MissingAssertionRule(Rule):
@@ -369,7 +372,7 @@ class UnusedVariableRule(Rule):
                     self.create_issue(
                         file_path=file_path,
                         line=test_func.line_number + line_number - 1,
-                        message=f"Variable '{var_name}' is assigned but never used",
+                        message=f"Unused variable '{var_name}' is assigned but never used",
                         suggestion=suggestion,
                     )
                 )

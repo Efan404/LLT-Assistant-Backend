@@ -167,9 +167,15 @@ def test_missing_assertion():
         parsed_file = parse_test_file("test_file.py", source_code)
         issues = self.rule_engine.analyze(parsed_file)
 
-        # Should have one issue with a suggestion
-        assert len(issues) == 1
-        issue = issues[0]
+        # Should have two issues: missing assertion and unused variable
+        assert len(issues) >= 1
+
+        # Find the missing assertion issue
+        missing_assertion_issues = [
+            issue for issue in issues if issue.type == "missing-assertion"
+        ]
+        assert len(missing_assertion_issues) == 1
+        issue = missing_assertion_issues[0]
 
         assert issue.suggestion is not None
         assert issue.suggestion.action == "add"

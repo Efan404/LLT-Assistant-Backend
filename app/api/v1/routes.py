@@ -99,6 +99,9 @@ async def analyze_tests(request: AnalyzeRequest) -> AnalyzeResponse:
             metrics=result.metrics,
         )
 
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
