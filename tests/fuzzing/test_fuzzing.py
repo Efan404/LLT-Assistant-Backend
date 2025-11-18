@@ -24,29 +24,24 @@ simple_python_code = st.one_of(
     st.just("def test_example(): assert True"),
     st.just("def test_simple(): pass"),
     st.just("assert 1 == 1"),
-    st.text(alphabet=st.characters(blacklist_categories=("Cs",)), min_size=0, max_size=100)
+    st.text(
+        alphabet=st.characters(blacklist_categories=("Cs",)), min_size=0, max_size=100
+    ),
 )
 
 
 class TestAPIFuzzing:
     """Fuzzing tests for API endpoints."""
 
-    @given(
-        path=st.text(min_size=1, max_size=100),
-        content=simple_python_code
+    @given(path=st.text(min_size=1, max_size=100), content=simple_python_code)
+    @settings(
+        max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture]
     )
-    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_analyze_endpoint_with_random_paths(self, fuzzing_client, path, content):
         """Test analyze endpoint with randomly generated file paths."""
         payload = {
-            "files": [
-                {
-                    "path": path,
-                    "content": content,
-                    "git_diff": None
-                }
-            ],
-            "mode": "rules-only"
+            "files": [{"path": path, "content": content, "git_diff": None}],
+            "mode": "rules-only",
         }
 
         try:
@@ -65,10 +60,10 @@ class TestAPIFuzzing:
             # Allow exceptions for truly invalid inputs
             pass
 
-    @given(
-        mode=st.text(min_size=1, max_size=50)
+    @given(mode=st.text(min_size=1, max_size=50))
+    @settings(
+        max_examples=15, suppress_health_check=[HealthCheck.function_scoped_fixture]
     )
-    @settings(max_examples=15, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_analyze_with_random_modes(self, fuzzing_client, mode):
         """Test analyze endpoint with random mode strings."""
         payload = {
@@ -76,10 +71,10 @@ class TestAPIFuzzing:
                 {
                     "path": "test.py",
                     "content": "def test(): assert True",
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": mode
+            "mode": mode,
         }
 
         response = fuzzing_client.post("/api/v1/analyze", json=payload)
@@ -90,21 +85,15 @@ class TestAPIFuzzing:
         else:
             assert response.status_code in [400, 422]
 
-    @given(
-        content=st.text(min_size=0, max_size=500)
+    @given(content=st.text(min_size=0, max_size=500))
+    @settings(
+        max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture]
     )
-    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_analyze_with_random_content(self, fuzzing_client, content):
         """Test analyze endpoint with random file content."""
         payload = {
-            "files": [
-                {
-                    "path": "test_random.py",
-                    "content": content,
-                    "git_diff": None
-                }
-            ],
-            "mode": "rules-only"
+            "files": [{"path": "test_random.py", "content": content, "git_diff": None}],
+            "mode": "rules-only",
         }
 
         try:
@@ -117,25 +106,22 @@ class TestAPIFuzzing:
             # Some random content might cause issues
             pass
 
-    @given(
-        num_files=st.integers(min_value=0, max_value=100)
+    @given(num_files=st.integers(min_value=0, max_value=100))
+    @settings(
+        max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture]
     )
-    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_analyze_with_variable_file_count(self, fuzzing_client, num_files):
         """Test analyze endpoint with varying number of files."""
         files = [
             {
                 "path": f"test_{i}.py",
                 "content": f"def test_{i}(): assert True",
-                "git_diff": None
+                "git_diff": None,
             }
             for i in range(num_files)
         ]
 
-        payload = {
-            "files": files,
-            "mode": "rules-only"
-        }
+        payload = {"files": files, "mode": "rules-only"}
 
         response = fuzzing_client.post("/api/v1/analyze", json=payload)
 
@@ -154,7 +140,11 @@ class TestASTParserFuzzing:
     """Fuzzing tests for AST parser robustness."""
 
     @given(
-        code=st.text(alphabet=st.characters(blacklist_categories=("Cs",)), min_size=0, max_size=200)
+        code=st.text(
+            alphabet=st.characters(blacklist_categories=("Cs",)),
+            min_size=0,
+            max_size=200,
+        )
     )
     @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow])
     def test_parse_arbitrary_code(self, code):
@@ -177,9 +167,7 @@ class TestASTParserFuzzing:
             # Verify it's a known exception type
             assert isinstance(e, (SyntaxError, ValueError, Exception))
 
-    @given(
-        function_name=valid_python_identifiers
-    )
+    @given(function_name=valid_python_identifiers)
     @settings(max_examples=30)
     def test_parse_test_functions_with_random_names(self, function_name):
         """Test parsing test functions with random valid names."""
@@ -200,9 +188,7 @@ def {function_name}():
             # Should find the test function
             assert len(result.test_functions) >= 0
 
-    @given(
-        indentation=st.integers(min_value=0, max_value=10)
-    )
+    @given(indentation=st.integers(min_value=0, max_value=10))
     @settings(max_examples=15)
     def test_parse_with_various_indentation(self, indentation):
         """Test parsing code with various indentation levels."""
@@ -228,9 +214,7 @@ def {function_name}():
 class TestRuleEngineFuzzing:
     """Fuzzing tests for rule engine robustness."""
 
-    @given(
-        assertion_count=st.integers(min_value=0, max_value=20)
-    )
+    @given(assertion_count=st.integers(min_value=0, max_value=20))
     @settings(max_examples=15)
     def test_redundant_assertion_detection_with_varying_counts(self, assertion_count):
         """Test redundant assertion detection with varying assertion counts."""
@@ -238,7 +222,9 @@ class TestRuleEngineFuzzing:
         from app.analyzers.rule_engine import RuleEngine
 
         # Generate code with N assertions
-        assertions = "\n    ".join([f"assert value == 42" for _ in range(assertion_count)])
+        assertions = "\n    ".join(
+            [f"assert value == 42" for _ in range(assertion_count)]
+        )
         code = f"""
 def test_redundant():
     value = 42
@@ -258,9 +244,13 @@ def test_redundant():
 
     @given(
         code_lines=st.lists(
-            st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")), min_size=0, max_size=50),
+            st.text(
+                alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")),
+                min_size=0,
+                max_size=50,
+            ),
             min_size=0,
-            max_size=10
+            max_size=10,
         )
     )
     @settings(max_examples=20)
@@ -293,17 +283,15 @@ class TestInputValidationFuzzing:
         data=st.dictionaries(
             keys=st.text(min_size=1, max_size=20),
             values=st.one_of(
-                st.text(),
-                st.integers(),
-                st.booleans(),
-                st.none(),
-                st.lists(st.text())
+                st.text(), st.integers(), st.booleans(), st.none(), st.lists(st.text())
             ),
             min_size=0,
-            max_size=10
+            max_size=10,
         )
     )
-    @settings(max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(
+        max_examples=30, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
     def test_analyze_with_random_json_payloads(self, fuzzing_client, data):
         """Test analyze endpoint with random JSON payloads."""
         try:
@@ -316,13 +304,10 @@ class TestInputValidationFuzzing:
             # Some invalid payloads might cause exceptions
             pass
 
-    @given(
-        git_diff=st.one_of(
-            st.none(),
-            st.text(min_size=0, max_size=100)
-        )
+    @given(git_diff=st.one_of(st.none(), st.text(min_size=0, max_size=100)))
+    @settings(
+        max_examples=15, suppress_health_check=[HealthCheck.function_scoped_fixture]
     )
-    @settings(max_examples=15, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_analyze_with_random_git_diff(self, fuzzing_client, git_diff):
         """Test analyze endpoint with random git_diff values."""
         payload = {
@@ -330,10 +315,10 @@ class TestInputValidationFuzzing:
                 {
                     "path": "test.py",
                     "content": "def test(): assert True",
-                    "git_diff": git_diff
+                    "git_diff": git_diff,
                 }
             ],
-            "mode": "rules-only"
+            "mode": "rules-only",
         }
 
         try:
@@ -352,14 +337,8 @@ class TestEdgeCases:
     def test_analyze_empty_string_content(self, fuzzing_client):
         """Test analyzing file with empty string content."""
         payload = {
-            "files": [
-                {
-                    "path": "test_empty.py",
-                    "content": "",
-                    "git_diff": None
-                }
-            ],
-            "mode": "rules-only"
+            "files": [{"path": "test_empty.py", "content": "", "git_diff": None}],
+            "mode": "rules-only",
         }
 
         response = fuzzing_client.post("/api/v1/analyze", json=payload)
@@ -374,10 +353,10 @@ class TestEdgeCases:
                 {
                     "path": "test_whitespace.py",
                     "content": "   \n\n\t\t\n   ",
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": "rules-only"
+            "mode": "rules-only",
         }
 
         response = fuzzing_client.post("/api/v1/analyze", json=payload)
@@ -395,10 +374,10 @@ def test_unicode():
     message = "Hello 世界 🌍"
     assert len(message) > 0
 """,
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": "rules-only"
+            "mode": "rules-only",
         }
 
         response = fuzzing_client.post("/api/v1/analyze", json=payload)
@@ -413,10 +392,10 @@ def test_unicode():
                 {
                     "path": "test_long.py",
                     "content": f'def test(): assert "{long_string}" != ""',
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": "rules-only"
+            "mode": "rules-only",
         }
 
         response = fuzzing_client.post("/api/v1/analyze", json=payload)
@@ -432,14 +411,8 @@ def test_unicode():
         code += "    " * 11 + "assert True"
 
         payload = {
-            "files": [
-                {
-                    "path": "test_nested.py",
-                    "content": code,
-                    "git_diff": None
-                }
-            ],
-            "mode": "rules-only"
+            "files": [{"path": "test_nested.py", "content": code, "git_diff": None}],
+            "mode": "rules-only",
         }
 
         response = fuzzing_client.post("/api/v1/analyze", json=payload)

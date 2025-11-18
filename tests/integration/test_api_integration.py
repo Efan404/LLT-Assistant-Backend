@@ -89,9 +89,7 @@ class TestAnalyzeEndpoint:
 
     def test_analyze_missing_files_returns_error(self, integration_client):
         """Test that request without files returns error."""
-        payload = {
-            "mode": "rules-only"
-        }
+        payload = {"mode": "rules-only"}
 
         response = integration_client.post("/api/v1/analyze", json=payload)
 
@@ -99,10 +97,7 @@ class TestAnalyzeEndpoint:
 
     def test_analyze_empty_files_list_returns_error(self, integration_client):
         """Test that empty files list returns error."""
-        payload = {
-            "files": [],
-            "mode": "rules-only"
-        }
+        payload = {"files": [], "mode": "rules-only"}
 
         response = integration_client.post("/api/v1/analyze", json=payload)
 
@@ -120,11 +115,11 @@ def test_addition():
     result = 1 + 1
     assert result == 2
 """,
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
             "mode": "rules-only",
-            "config": {}
+            "config": {},
         }
 
         response = integration_client.post("/api/v1/analyze", json=payload)
@@ -156,10 +151,10 @@ def test_redundant():
     assert value == 42
     assert value == 42  # Redundant assertion
 """,
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": "rules-only"
+            "mode": "rules-only",
         }
 
         response = integration_client.post("/api/v1/analyze", json=payload)
@@ -195,10 +190,10 @@ def test_missing_assertion():
     result = value + 5
     # No assertion
 """,
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": "rules-only"
+            "mode": "rules-only",
         }
 
         response = integration_client.post("/api/v1/analyze", json=payload)
@@ -220,10 +215,10 @@ def test_trivial():
     assert True
     assert 1 == 1
 """,
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": "rules-only"
+            "mode": "rules-only",
         }
 
         response = integration_client.post("/api/v1/analyze", json=payload)
@@ -241,20 +236,20 @@ def test_trivial():
                 {
                     "path": "test_file1.py",
                     "content": "def test_one(): assert True",
-                    "git_diff": None
+                    "git_diff": None,
                 },
                 {
                     "path": "test_file2.py",
                     "content": "def test_two(): assert 1 == 1",
-                    "git_diff": None
+                    "git_diff": None,
                 },
                 {
                     "path": "test_file3.py",
                     "content": "def test_three(): assert 2 + 2 == 4",
-                    "git_diff": None
-                }
+                    "git_diff": None,
+                },
             ],
-            "mode": "rules-only"
+            "mode": "rules-only",
         }
 
         response = integration_client.post("/api/v1/analyze", json=payload)
@@ -272,10 +267,10 @@ def test_trivial():
                 {
                     "path": "test.py",
                     "content": "def test(): assert True",
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": "invalid-mode"
+            "mode": "invalid-mode",
         }
 
         response = integration_client.post("/api/v1/analyze", json=payload)
@@ -293,10 +288,10 @@ def test_trivial():
 def test_broken(:
     assert True  # Missing closing paren in function def
 """,
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": "rules-only"
+            "mode": "rules-only",
         }
 
         response = integration_client.post("/api/v1/analyze", json=payload)
@@ -321,10 +316,10 @@ class TestCalculator:
     def test_multiplication(self):
         assert 3 * 4 == 12
 """,
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": "rules-only"
+            "mode": "rules-only",
         }
 
         response = integration_client.post("/api/v1/analyze", json=payload)
@@ -351,10 +346,10 @@ def sample_data():
 def test_with_fixture(sample_data):
     assert sample_data["key"] == "value"
 """,
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": "rules-only"
+            "mode": "rules-only",
         }
 
         response = integration_client.post("/api/v1/analyze", json=payload)
@@ -380,10 +375,10 @@ def test_simple():
     value = 42
     assert value == 42
 """,
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": "llm-only"
+            "mode": "llm-only",
         }
 
         response = integration_client.post("/api/v1/analyze", json=payload)
@@ -418,10 +413,10 @@ def test_with_issues():
     value = 42
     assert value == 42
 """,
-                    "git_diff": None
+                    "git_diff": None,
                 }
             ],
-            "mode": "hybrid"
+            "mode": "hybrid",
         }
 
         response = integration_client.post("/api/v1/analyze", json=payload)
@@ -497,7 +492,7 @@ class TestErrorHandling:
         response = integration_client.post(
             "/api/v1/analyze",
             data="this is not json",
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
         )
 
         assert response.status_code in [400, 422]
@@ -510,22 +505,20 @@ class TestPerformance:
     def test_analyze_large_file(self, integration_client):
         """Test analyzing a large test file."""
         # Generate large test content
-        test_functions = "\n\n".join([
-            f"""def test_function_{i}():
+        test_functions = "\n\n".join(
+            [
+                f"""def test_function_{i}():
     result = {i} + {i}
     assert result == {i * 2}"""
-            for i in range(50)
-        ])
+                for i in range(50)
+            ]
+        )
 
         payload = {
             "files": [
-                {
-                    "path": "test_large.py",
-                    "content": test_functions,
-                    "git_diff": None
-                }
+                {"path": "test_large.py", "content": test_functions, "git_diff": None}
             ],
-            "mode": "rules-only"
+            "mode": "rules-only",
         }
 
         response = integration_client.post("/api/v1/analyze", json=payload)

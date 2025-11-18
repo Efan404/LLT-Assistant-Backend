@@ -28,12 +28,14 @@ def get_analyzer() -> TestAnalyzer:
             rule_engine = RuleEngine()
             llm_client = create_llm_client()
             llm_analyzer = LLMAnalyzer(llm_client)
-            
+
             # Create main analyzer
             analyzer = TestAnalyzer(rule_engine, llm_analyzer)
         except Exception as e:
-            raise HTTPException(status_code=503, detail=f"Failed to initialize analyzer: {str(e)}")
-    
+            raise HTTPException(
+                status_code=503, detail=f"Failed to initialize analyzer: {str(e)}"
+            )
+
     return analyzer
 
 
@@ -41,38 +43,38 @@ def get_analyzer() -> TestAnalyzer:
 async def analyze_tests(request: AnalyzeRequest) -> AnalyzeResponse:
     """
     Analyze pytest test files for quality issues.
-    
+
     This endpoint accepts test file content and returns detected issues
     with fix suggestions. Analysis can use rule engine only, LLM only,
     or a hybrid approach.
-    
+
     Args:
         request: Analysis request containing test files and configuration
-        
+
     Returns:
         Analysis response with detected issues and metrics
-        
+
     Raises:
         HTTPException: If analysis fails or request is invalid
     """
     try:
         # Get analyzer instance
         test_analyzer = get_analyzer()
-        
+
         # Validate request
         if not request.files:
-            raise HTTPException(status_code=400, detail="No files provided for analysis")
-        
+            raise HTTPException(
+                status_code=400, detail="No files provided for analysis"
+            )
+
         if len(request.files) > 50:  # Configurable limit
             raise HTTPException(status_code=400, detail="Too many files (max 50)")
-        
+
         # Run analysis
         result = await test_analyzer.analyze_files(
-            files=request.files,
-            mode=request.mode,
-            config=request.config
+            files=request.files, mode=request.mode, config=request.config
         )
-        
+
         # Enhance suggestions for rule-based issues
         enhanced_issues = []
         for issue in result.issues:
@@ -89,22 +91,25 @@ async def analyze_tests(request: AnalyzeRequest) -> AnalyzeResponse:
                     enhanced_issues.append(issue)
             else:
                 enhanced_issues.append(issue)
-        
+
         # Create response with enhanced issues
         return AnalyzeResponse(
             analysis_id=result.analysis_id,
             issues=enhanced_issues,
-            metrics=result.metrics
+            metrics=result.metrics,
         )
-        
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         # Log the error and return generic message
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Analysis failed: {e}")
-        raise HTTPException(status_code=500, detail="Analysis failed due to internal error")
+        raise HTTPException(
+            status_code=500, detail="Analysis failed due to internal error"
+        )
 
 
 @router.get("/health")
@@ -113,18 +118,14 @@ async def health_check() -> Dict[str, Any]:
     try:
         # Check if analyzer can be initialized
         test_analyzer = get_analyzer()
-        
+
         return {
             "status": "healthy",
             "analyzer_ready": test_analyzer is not None,
-            "mode": "full"  # Could be extended to check LLM connectivity
+            "mode": "full",  # Could be extended to check LLM connectivity
         }
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "analyzer_ready": False
-        }
+        return {"status": "unhealthy", "error": str(e), "analyzer_ready": False}
 
 
 @router.get("/modes")
@@ -135,17 +136,17 @@ async def get_analysis_modes() -> Dict[str, Any]:
             {
                 "id": "rules-only",
                 "name": "Rules Only",
-                "description": "Fast analysis using only deterministic rules (recommended for quick checks)"
+                "description": "Fast analysis using only deterministic rules (recommended for quick checks)",
             },
             {
-                "id": "llm-only", 
+                "id": "llm-only",
                 "name": "LLM Only",
-                "description": "Deep analysis using only AI (slower but more comprehensive)"
+                "description": "Deep analysis using only AI (slower but more comprehensive)",
             },
             {
                 "id": "hybrid",
                 "name": "Hybrid",
-                "description": "Combines fast rule-based analysis with AI for uncertain cases (recommended)"
-            }
+                "description": "Combines fast rule-based analysis with AI for uncertain cases (recommended)",
+            },
         ]
     }

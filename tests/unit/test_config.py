@@ -155,7 +155,7 @@ class TestSettings:
             "PORT": "8080",
             "LLM_API_KEY": "sk-test-key",
             "LLM_MODEL": "test-model",
-            "LOG_LEVEL": "DEBUG"
+            "LOG_LEVEL": "DEBUG",
         }
 
         with patch.dict(os.environ, env_overrides):

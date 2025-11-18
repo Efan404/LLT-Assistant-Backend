@@ -16,7 +16,7 @@ from app.core.llm_client import (
     LLMRateLimitError,
     LLMTimeoutError,
     LLMAPIError,
-    create_llm_client
+    create_llm_client,
 )
 
 
@@ -28,7 +28,7 @@ def llm_client_config():
         "base_url": "https://api.test.com/v1",
         "model": "test-model",
         "timeout": 30.0,
-        "max_retries": 3
+        "max_retries": 3,
     }
 
 
@@ -45,7 +45,7 @@ def sample_messages():
     """Provide sample messages for chat completion."""
     return [
         {"role": "system", "content": "You are a test analyzer."},
-        {"role": "user", "content": "Analyze this test code."}
+        {"role": "user", "content": "Analyze this test code."},
     ]
 
 
@@ -57,18 +57,9 @@ def successful_response():
     response.json.return_value = {
         "id": "test-id-123",
         "choices": [
-            {
-                "message": {
-                    "role": "assistant",
-                    "content": "This is a test response"
-                }
-            }
+            {"message": {"role": "assistant", "content": "This is a test response"}}
         ],
-        "usage": {
-            "prompt_tokens": 100,
-            "completion_tokens": 50,
-            "total_tokens": 150
-        }
+        "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
     }
     return response
 
@@ -98,15 +89,14 @@ class TestLLMClient:
 
     @pytest.mark.asyncio
     async def test_successful_chat_completion(
-        self,
-        llm_client_config,
-        sample_messages,
-        successful_response
+        self, llm_client_config, sample_messages, successful_response
     ):
         """Test successful chat completion request."""
         client = LLMClient(**llm_client_config)
 
-        with patch.object(client.client, 'post', return_value=successful_response) as mock_post:
+        with patch.object(
+            client.client, "post", return_value=successful_response
+        ) as mock_post:
             result = await client.chat_completion(sample_messages)
 
             # Verify request was made
@@ -127,7 +117,9 @@ class TestLLMClient:
         await client.close()
 
     @pytest.mark.asyncio
-    async def test_rate_limit_with_retry(self, llm_client_config, sample_messages, successful_response):
+    async def test_rate_limit_with_retry(
+        self, llm_client_config, sample_messages, successful_response
+    ):
         """Test that client retries on rate limit (429) and eventually succeeds."""
         client = LLMClient(**llm_client_config)
 
@@ -138,8 +130,8 @@ class TestLLMClient:
 
         responses = [rate_limit_response, successful_response]
 
-        with patch.object(client.client, 'post', side_effect=responses) as mock_post:
-            with patch('asyncio.sleep', return_value=None):  # Speed up test
+        with patch.object(client.client, "post", side_effect=responses) as mock_post:
+            with patch("asyncio.sleep", return_value=None):  # Speed up test
                 result = await client.chat_completion(sample_messages)
 
                 # Should have made 2 requests
@@ -149,7 +141,9 @@ class TestLLMClient:
         await client.close()
 
     @pytest.mark.asyncio
-    async def test_rate_limit_exhausted_retries(self, llm_client_config, sample_messages):
+    async def test_rate_limit_exhausted_retries(
+        self, llm_client_config, sample_messages
+    ):
         """Test that client raises error when rate limit persists after all retries."""
         client = LLMClient(**llm_client_config)
 
@@ -157,8 +151,8 @@ class TestLLMClient:
         rate_limit_response.status_code = 429
         rate_limit_response.headers = {}
 
-        with patch.object(client.client, 'post', return_value=rate_limit_response):
-            with patch('asyncio.sleep', return_value=None):
+        with patch.object(client.client, "post", return_value=rate_limit_response):
+            with patch("asyncio.sleep", return_value=None):
                 with pytest.raises(LLMRateLimitError, match="Rate limit exceeded"):
                     await client.chat_completion(sample_messages)
 
@@ -166,10 +160,7 @@ class TestLLMClient:
 
     @pytest.mark.asyncio
     async def test_server_error_with_retry(
-        self,
-        llm_client_config,
-        sample_messages,
-        successful_response
+        self, llm_client_config, sample_messages, successful_response
     ):
         """Test that client retries on server errors (5xx)."""
         client = LLMClient(**llm_client_config)
@@ -179,8 +170,8 @@ class TestLLMClient:
 
         responses = [server_error_response, successful_response]
 
-        with patch.object(client.client, 'post', side_effect=responses):
-            with patch('asyncio.sleep', return_value=None):
+        with patch.object(client.client, "post", side_effect=responses):
+            with patch("asyncio.sleep", return_value=None):
                 result = await client.chat_completion(sample_messages)
 
                 assert result == "This is a test response"
@@ -188,22 +179,26 @@ class TestLLMClient:
         await client.close()
 
     @pytest.mark.asyncio
-    async def test_server_error_exhausted_retries(self, llm_client_config, sample_messages):
+    async def test_server_error_exhausted_retries(
+        self, llm_client_config, sample_messages
+    ):
         """Test that client raises error when server errors persist."""
         client = LLMClient(**llm_client_config)
 
         server_error_response = Mock(spec=httpx.Response)
         server_error_response.status_code = 503
 
-        with patch.object(client.client, 'post', return_value=server_error_response):
-            with patch('asyncio.sleep', return_value=None):
+        with patch.object(client.client, "post", return_value=server_error_response):
+            with patch("asyncio.sleep", return_value=None):
                 with pytest.raises(LLMAPIError, match="Server error 503"):
                     await client.chat_completion(sample_messages)
 
         await client.close()
 
     @pytest.mark.asyncio
-    async def test_client_error_raises_immediately(self, llm_client_config, sample_messages):
+    async def test_client_error_raises_immediately(
+        self, llm_client_config, sample_messages
+    ):
         """Test that client errors (4xx) raise immediately without retry."""
         client = LLMClient(**llm_client_config)
 
@@ -212,7 +207,7 @@ class TestLLMClient:
         client_error_response.text = "Bad request"
         client_error_response.json.return_value = {"error": "Invalid payload"}
 
-        with patch.object(client.client, 'post', return_value=client_error_response):
+        with patch.object(client.client, "post", return_value=client_error_response):
             with pytest.raises(LLMAPIError) as exc_info:
                 await client.chat_completion(sample_messages)
 
@@ -222,14 +217,16 @@ class TestLLMClient:
         await client.close()
 
     @pytest.mark.asyncio
-    async def test_timeout_with_retry(self, llm_client_config, sample_messages, successful_response):
+    async def test_timeout_with_retry(
+        self, llm_client_config, sample_messages, successful_response
+    ):
         """Test that client retries on timeout."""
         client = LLMClient(**llm_client_config)
 
         responses = [httpx.TimeoutException("Timeout"), successful_response]
 
-        with patch.object(client.client, 'post', side_effect=responses):
-            with patch('asyncio.sleep', return_value=None):
+        with patch.object(client.client, "post", side_effect=responses):
+            with patch("asyncio.sleep", return_value=None):
                 result = await client.chat_completion(sample_messages)
 
                 assert result == "This is a test response"
@@ -241,8 +238,10 @@ class TestLLMClient:
         """Test that client raises error when timeout persists."""
         client = LLMClient(**llm_client_config)
 
-        with patch.object(client.client, 'post', side_effect=httpx.TimeoutException("Timeout")):
-            with patch('asyncio.sleep', return_value=None):
+        with patch.object(
+            client.client, "post", side_effect=httpx.TimeoutException("Timeout")
+        ):
+            with patch("asyncio.sleep", return_value=None):
                 with pytest.raises(LLMTimeoutError, match="timed out"):
                     await client.chat_completion(sample_messages)
 
@@ -250,18 +249,15 @@ class TestLLMClient:
 
     @pytest.mark.asyncio
     async def test_connection_error_with_retry(
-        self,
-        llm_client_config,
-        sample_messages,
-        successful_response
+        self, llm_client_config, sample_messages, successful_response
     ):
         """Test that client retries on connection errors."""
         client = LLMClient(**llm_client_config)
 
         responses = [httpx.ConnectError("Connection failed"), successful_response]
 
-        with patch.object(client.client, 'post', side_effect=responses):
-            with patch('asyncio.sleep', return_value=None):
+        with patch.object(client.client, "post", side_effect=responses):
+            with patch("asyncio.sleep", return_value=None):
                 result = await client.chat_completion(sample_messages)
 
                 assert result == "This is a test response"
@@ -269,12 +265,16 @@ class TestLLMClient:
         await client.close()
 
     @pytest.mark.asyncio
-    async def test_connection_error_exhausted_retries(self, llm_client_config, sample_messages):
+    async def test_connection_error_exhausted_retries(
+        self, llm_client_config, sample_messages
+    ):
         """Test that client raises error when connection errors persist."""
         client = LLMClient(**llm_client_config)
 
-        with patch.object(client.client, 'post', side_effect=httpx.ConnectError("Connection failed")):
-            with patch('asyncio.sleep', return_value=None):
+        with patch.object(
+            client.client, "post", side_effect=httpx.ConnectError("Connection failed")
+        ):
+            with patch("asyncio.sleep", return_value=None):
                 with pytest.raises(LLMAPIError, match="Connection error"):
                     await client.chat_completion(sample_messages)
 
@@ -289,7 +289,7 @@ class TestLLMClient:
         invalid_response.status_code = 200
         invalid_response.json.return_value = {"no": "choices"}
 
-        with patch.object(client.client, 'post', return_value=invalid_response):
+        with patch.object(client.client, "post", return_value=invalid_response):
             with pytest.raises(LLMAPIError, match="Invalid response format"):
                 await client.chat_completion(sample_messages)
 
@@ -320,15 +320,19 @@ class TestLLMClient:
         """Test that close method properly closes HTTP client."""
         client = LLMClient(**llm_client_config)
 
-        with patch.object(client.client, 'aclose', new_callable=AsyncMock) as mock_close:
+        with patch.object(
+            client.client, "aclose", new_callable=AsyncMock
+        ) as mock_close:
             await client.close()
             mock_close.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_context_manager(self, llm_client_config, sample_messages, successful_response):
+    async def test_context_manager(
+        self, llm_client_config, sample_messages, successful_response
+    ):
         """Test using LLM client as async context manager."""
         async with LLMClient(**llm_client_config) as client:
-            with patch.object(client.client, 'post', return_value=successful_response):
+            with patch.object(client.client, "post", return_value=successful_response):
                 result = await client.chat_completion(sample_messages)
                 assert result == "This is a test response"
 
@@ -343,7 +347,9 @@ class TestLLMClient:
         assert client.base_url is not None
 
     @pytest.mark.asyncio
-    async def test_exponential_backoff(self, llm_client_config, sample_messages, successful_response):
+    async def test_exponential_backoff(
+        self, llm_client_config, sample_messages, successful_response
+    ):
         """Test that exponential backoff is used for retries."""
         client = LLMClient(**llm_client_config)
 
@@ -356,8 +362,8 @@ class TestLLMClient:
         async def mock_sleep(duration):
             sleep_times.append(duration)
 
-        with patch.object(client.client, 'post', side_effect=responses):
-            with patch('asyncio.sleep', side_effect=mock_sleep):
+        with patch.object(client.client, "post", side_effect=responses):
+            with patch("asyncio.sleep", side_effect=mock_sleep):
                 result = await client.chat_completion(sample_messages)
 
                 # Verify exponential backoff: 1s, 2s
@@ -384,13 +390,14 @@ class TestLLMClientIntegration:
         try:
             messages = [
                 {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "Say 'test successful' if you can read this."}
+                {
+                    "role": "user",
+                    "content": "Say 'test successful' if you can read this.",
+                },
             ]
 
             result = await client.chat_completion(
-                messages=messages,
-                temperature=0.1,
-                max_tokens=50
+                messages=messages, temperature=0.1, max_tokens=50
             )
 
             # Verify we got a response
@@ -410,14 +417,10 @@ class TestLLMClientIntegration:
             pytest.skip("Skipping LLM integration test (no API key or disabled)")
 
         async with create_llm_client() as client:
-            messages = [
-                {"role": "user", "content": "Respond with the word 'success'"}
-            ]
+            messages = [{"role": "user", "content": "Respond with the word 'success'"}]
 
             result = await client.chat_completion(
-                messages=messages,
-                temperature=0.0,
-                max_tokens=10
+                messages=messages, temperature=0.0, max_tokens=10
             )
 
             assert result is not None

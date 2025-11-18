@@ -38,10 +38,7 @@ def mock_llm_analyzer():
 @pytest.fixture
 def test_analyzer(mock_rule_engine, mock_llm_analyzer):
     """Provide TestAnalyzer instance with mocked dependencies."""
-    return TestAnalyzer(
-        rule_engine=mock_rule_engine,
-        llm_analyzer=mock_llm_analyzer
-    )
+    return TestAnalyzer(rule_engine=mock_rule_engine, llm_analyzer=mock_llm_analyzer)
 
 
 @pytest.fixture
@@ -54,7 +51,7 @@ def test_addition():
     result = 1 + 1
     assert result == 2
 """,
-        git_diff=None
+        git_diff=None,
     )
 
 
@@ -73,17 +70,15 @@ def sample_parsed_file():
                 parameters=[],
                 assertions=[
                     AssertionInfo(
-                        lineno=4,
-                        assertion_type="equality",
-                        values=["result", "2"]
+                        lineno=4, assertion_type="equality", values=["result", "2"]
                     )
                 ],
-                source_code="def test_addition():\n    result = 1 + 1\n    assert result == 2\n"
+                source_code="def test_addition():\n    result = 1 + 1\n    assert result == 2\n",
             )
         ],
         test_classes=[],
         has_syntax_errors=False,
-        syntax_error_message=None
+        syntax_error_message=None,
     )
 
 
@@ -94,8 +89,7 @@ class TestTestAnalyzer:
     async def test_analyzer_initialization(self, mock_rule_engine, mock_llm_analyzer):
         """Test that analyzer initializes with correct dependencies."""
         analyzer = TestAnalyzer(
-            rule_engine=mock_rule_engine,
-            llm_analyzer=mock_llm_analyzer
+            rule_engine=mock_rule_engine, llm_analyzer=mock_llm_analyzer
         )
 
         assert analyzer.rule_engine is mock_rule_engine
@@ -108,21 +102,18 @@ class TestTestAnalyzer:
             await test_analyzer.analyze_files(files=[])
 
     @pytest.mark.asyncio
-    async def test_analyze_files_invalid_mode_raises_error(self, test_analyzer, sample_file_input):
+    async def test_analyze_files_invalid_mode_raises_error(
+        self, test_analyzer, sample_file_input
+    ):
         """Test that invalid mode raises ValueError."""
         with pytest.raises(ValueError, match="Invalid analysis mode"):
             await test_analyzer.analyze_files(
-                files=[sample_file_input],
-                mode="invalid-mode"
+                files=[sample_file_input], mode="invalid-mode"
             )
 
     @pytest.mark.asyncio
     async def test_analyze_files_rules_only_mode(
-        self,
-        test_analyzer,
-        sample_file_input,
-        sample_parsed_file,
-        mock_rule_engine
+        self, test_analyzer, sample_file_input, sample_parsed_file, mock_rule_engine
     ):
         """Test analysis in rules-only mode."""
         # Setup mock to return sample issues
@@ -134,15 +125,16 @@ class TestTestAnalyzer:
             type="redundant-assertion",
             message="Redundant assertion detected",
             detected_by="rule_engine",
-            suggestion=None
+            suggestion=None,
         )
         mock_rule_engine.analyze.return_value = [mock_issue]
 
         # Mock file parsing
-        with patch.object(test_analyzer, '_parse_files_parallel', return_value=[sample_parsed_file]):
+        with patch.object(
+            test_analyzer, "_parse_files_parallel", return_value=[sample_parsed_file]
+        ):
             response = await test_analyzer.analyze_files(
-                files=[sample_file_input],
-                mode="rules-only"
+                files=[sample_file_input], mode="rules-only"
             )
 
         # Verify response
@@ -156,11 +148,7 @@ class TestTestAnalyzer:
 
     @pytest.mark.asyncio
     async def test_analyze_files_llm_only_mode(
-        self,
-        test_analyzer,
-        sample_file_input,
-        sample_parsed_file,
-        mock_llm_analyzer
+        self, test_analyzer, sample_file_input, sample_parsed_file, mock_llm_analyzer
     ):
         """Test analysis in llm-only mode."""
         # Setup mock to return LLM issues
@@ -172,15 +160,16 @@ class TestTestAnalyzer:
             type="test-smell",
             message="Test could be more descriptive",
             detected_by="llm",
-            suggestion=None
+            suggestion=None,
         )
         mock_llm_analyzer.analyze_assertion_quality.return_value = [mock_issue]
 
         # Mock file parsing
-        with patch.object(test_analyzer, '_parse_files_parallel', return_value=[sample_parsed_file]):
+        with patch.object(
+            test_analyzer, "_parse_files_parallel", return_value=[sample_parsed_file]
+        ):
             response = await test_analyzer.analyze_files(
-                files=[sample_file_input],
-                mode="llm-only"
+                files=[sample_file_input], mode="llm-only"
             )
 
         # Verify that LLM analyzer was called
@@ -195,7 +184,7 @@ class TestTestAnalyzer:
         sample_file_input,
         sample_parsed_file,
         mock_rule_engine,
-        mock_llm_analyzer
+        mock_llm_analyzer,
     ):
         """Test analysis in hybrid mode combines both rule and LLM results."""
         # Setup mock issues from both sources
@@ -207,7 +196,7 @@ class TestTestAnalyzer:
             type="redundant-assertion",
             message="Redundant assertion",
             detected_by="rule_engine",
-            suggestion=None
+            suggestion=None,
         )
         llm_issue = Issue(
             file="test_example.py",
@@ -217,18 +206,23 @@ class TestTestAnalyzer:
             type="test-smell",
             message="Test smell detected",
             detected_by="llm",
-            suggestion=None
+            suggestion=None,
         )
 
         mock_rule_engine.analyze.return_value = [rule_issue]
         mock_llm_analyzer.analyze_test_smells.return_value = [llm_issue]
 
         # Mock file parsing and uncertain case identification
-        with patch.object(test_analyzer, '_parse_files_parallel', return_value=[sample_parsed_file]):
-            with patch.object(test_analyzer, '_identify_uncertain_cases', return_value=[sample_parsed_file.test_functions[0]]):
+        with patch.object(
+            test_analyzer, "_parse_files_parallel", return_value=[sample_parsed_file]
+        ):
+            with patch.object(
+                test_analyzer,
+                "_identify_uncertain_cases",
+                return_value=[sample_parsed_file.test_functions[0]],
+            ):
                 response = await test_analyzer.analyze_files(
-                    files=[sample_file_input],
-                    mode="hybrid"
+                    files=[sample_file_input], mode="hybrid"
                 )
 
         # Verify both analyzers were called
@@ -241,7 +235,7 @@ class TestTestAnalyzer:
     @pytest.mark.asyncio
     async def test_parse_files_parallel_success(self, test_analyzer, sample_file_input):
         """Test successful parallel file parsing."""
-        with patch('app.core.analyzer.parse_test_file') as mock_parse:
+        with patch("app.core.analyzer.parse_test_file") as mock_parse:
             mock_parsed = ParsedTestFile(
                 file_path="test_example.py",
                 imports=[],
@@ -249,7 +243,7 @@ class TestTestAnalyzer:
                 test_functions=[],
                 test_classes=[],
                 has_syntax_errors=False,
-                syntax_error_message=None
+                syntax_error_message=None,
             )
             mock_parse.return_value = mock_parsed
 
@@ -263,12 +257,10 @@ class TestTestAnalyzer:
     async def test_parse_files_handles_syntax_errors(self, test_analyzer):
         """Test that parser handles files with syntax errors gracefully."""
         bad_file = FileInput(
-            path="test_bad.py",
-            content="def test_broken(:\n    pass",
-            git_diff=None
+            path="test_bad.py", content="def test_broken(:\n    pass", git_diff=None
         )
 
-        with patch('app.core.analyzer.parse_test_file') as mock_parse:
+        with patch("app.core.analyzer.parse_test_file") as mock_parse:
             mock_parse.side_effect = SyntaxError("invalid syntax")
 
             results = await test_analyzer._parse_files_parallel([bad_file])
@@ -285,7 +277,7 @@ class TestTestAnalyzer:
             decorators=[],
             parameters=[],
             assertions=[],
-            source_code="def test_user_creation(): pass"
+            source_code="def test_user_creation(): pass",
         )
         func2 = TestFunctionInfo(
             name="test_user_deletion",
@@ -293,7 +285,7 @@ class TestTestAnalyzer:
             decorators=[],
             parameters=[],
             assertions=[],
-            source_code="def test_user_deletion(): pass"
+            source_code="def test_user_deletion(): pass",
         )
 
         parsed_file = ParsedTestFile(
@@ -303,7 +295,7 @@ class TestTestAnalyzer:
             test_functions=[func1, func2],
             test_classes=[],
             has_syntax_errors=False,
-            syntax_error_message=None
+            syntax_error_message=None,
         )
 
         uncertain = test_analyzer._identify_uncertain_cases(parsed_file)
@@ -326,7 +318,7 @@ class TestTestAnalyzer:
                 AssertionInfo(lineno=4, assertion_type="equality", values=["c", "3"]),
                 AssertionInfo(lineno=5, assertion_type="equality", values=["d", "4"]),
             ],
-            source_code="def test_complex(): pass"
+            source_code="def test_complex(): pass",
         )
 
         parsed_file = ParsedTestFile(
@@ -336,7 +328,7 @@ class TestTestAnalyzer:
             test_functions=[func],
             test_classes=[],
             has_syntax_errors=False,
-            syntax_error_message=None
+            syntax_error_message=None,
         )
 
         uncertain = test_analyzer._identify_uncertain_cases(parsed_file)
@@ -352,7 +344,7 @@ class TestTestAnalyzer:
             decorators=[],
             parameters=[],
             assertions=[],
-            source_code="def test_with_sleep():\n    time.sleep(1)\n    assert True"
+            source_code="def test_with_sleep():\n    time.sleep(1)\n    assert True",
         )
 
         parsed_file = ParsedTestFile(
@@ -362,7 +354,7 @@ class TestTestAnalyzer:
             test_functions=[func],
             test_classes=[],
             has_syntax_errors=False,
-            syntax_error_message=None
+            syntax_error_message=None,
         )
 
         uncertain = test_analyzer._identify_uncertain_cases(parsed_file)
@@ -381,7 +373,7 @@ class TestTestAnalyzer:
                 type="issue1",
                 message="Rule issue",
                 detected_by="rule_engine",
-                suggestion=None
+                suggestion=None,
             )
         ]
         llm_issues = [
@@ -393,7 +385,7 @@ class TestTestAnalyzer:
                 type="issue2",
                 message="LLM issue",
                 detected_by="llm",
-                suggestion=None
+                suggestion=None,
             )
         ]
 
@@ -413,7 +405,7 @@ class TestTestAnalyzer:
                 type="issue1",
                 message="Rule issue",
                 detected_by="rule_engine",
-                suggestion=None
+                suggestion=None,
             )
         ]
         llm_issues = [
@@ -425,7 +417,7 @@ class TestTestAnalyzer:
                 type="issue2",
                 message="LLM issue",
                 detected_by="llm",
-                suggestion=None
+                suggestion=None,
             )
         ]
 
@@ -444,7 +436,7 @@ class TestTestAnalyzer:
             type="redundant-assertion",
             message="Redundant assertion",
             detected_by="rule_engine",
-            suggestion=None
+            suggestion=None,
         )
         llm_issue = Issue(
             file="test.py",
@@ -454,7 +446,7 @@ class TestTestAnalyzer:
             type="redundant-assertion",
             message="Duplicate assertion found",
             detected_by="llm",
-            suggestion=None
+            suggestion=None,
         )
 
         merged = test_analyzer._merge_issues([rule_issue], [llm_issue], "hybrid")
@@ -475,7 +467,7 @@ class TestTestAnalyzer:
                 test_functions=[Mock(), Mock()],  # 2 tests
                 test_classes=[],
                 has_syntax_errors=False,
-                syntax_error_message=None
+                syntax_error_message=None,
             ),
             ParsedTestFile(
                 file_path="test2.py",
@@ -484,8 +476,8 @@ class TestTestAnalyzer:
                 test_functions=[Mock()],  # 1 test
                 test_classes=[],
                 has_syntax_errors=False,
-                syntax_error_message=None
-            )
+                syntax_error_message=None,
+            ),
         ]
 
         issues = [Mock(), Mock(), Mock()]  # 3 issues
@@ -498,20 +490,25 @@ class TestTestAnalyzer:
         assert metrics.analysis_time_ms >= 0
 
     @pytest.mark.asyncio
-    async def test_close_calls_llm_analyzer_close(self, test_analyzer, mock_llm_analyzer):
+    async def test_close_calls_llm_analyzer_close(
+        self, test_analyzer, mock_llm_analyzer
+    ):
         """Test that close() properly closes the LLM analyzer."""
         await test_analyzer.close()
 
         mock_llm_analyzer.close.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_analyze_files_handles_parsing_exceptions(self, test_analyzer, sample_file_input):
+    async def test_analyze_files_handles_parsing_exceptions(
+        self, test_analyzer, sample_file_input
+    ):
         """Test that analyzer handles parsing exceptions gracefully."""
-        with patch.object(test_analyzer, '_parse_files_parallel', side_effect=Exception("Parse error")):
+        with patch.object(
+            test_analyzer, "_parse_files_parallel", side_effect=Exception("Parse error")
+        ):
             with pytest.raises(Exception, match="Parse error"):
                 await test_analyzer.analyze_files(
-                    files=[sample_file_input],
-                    mode="rules-only"
+                    files=[sample_file_input], mode="rules-only"
                 )
 
     @pytest.mark.asyncio
@@ -521,7 +518,7 @@ class TestTestAnalyzer:
             FileInput(
                 path=f"test_{i}.py",
                 content=f"def test_{i}(): assert True",
-                git_diff=None
+                git_diff=None,
             )
             for i in range(3)
         ]
@@ -534,15 +531,14 @@ class TestTestAnalyzer:
                 test_functions=[Mock()],
                 test_classes=[],
                 has_syntax_errors=False,
-                syntax_error_message=None
+                syntax_error_message=None,
             )
             for i in range(3)
         ]
 
-        with patch.object(test_analyzer, '_parse_files_parallel', return_value=mock_parsed_files):
-            response = await test_analyzer.analyze_files(
-                files=files,
-                mode="rules-only"
-            )
+        with patch.object(
+            test_analyzer, "_parse_files_parallel", return_value=mock_parsed_files
+        ):
+            response = await test_analyzer.analyze_files(files=files, mode="rules-only")
 
         assert response.metrics.total_tests == 3

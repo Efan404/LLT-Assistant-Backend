@@ -273,16 +273,12 @@ def mock_llm_response() -> Dict[str, Any]:
                             "message": "Test could be more specific",
                             "explanation": "Consider adding more descriptive assertions"
                         }
-                    ]"""
+                    ]""",
                 },
-                "finish_reason": "stop"
+                "finish_reason": "stop",
             }
         ],
-        "usage": {
-            "prompt_tokens": 100,
-            "completion_tokens": 50,
-            "total_tokens": 150
-        }
+        "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
     }
 
 
@@ -298,7 +294,7 @@ def mock_llm_error_response() -> Dict[str, Any]:
         "error": {
             "message": "Rate limit exceeded",
             "type": "rate_limit_error",
-            "code": "rate_limit_exceeded"
+            "code": "rate_limit_exceeded",
         }
     }
 
@@ -316,11 +312,11 @@ def sample_analysis_request() -> Dict[str, Any]:
             {
                 "path": "test_example.py",
                 "content": "def test_addition():\n    assert 1 + 1 == 2\n",
-                "git_diff": None
+                "git_diff": None,
             }
         ],
         "mode": "hybrid",
-        "config": {}
+        "config": {},
     }
 
 

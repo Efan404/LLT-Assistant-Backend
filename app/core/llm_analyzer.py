@@ -142,15 +142,12 @@ Pay special attention to:
 
 class LLMAnalyzer:
     """Handles LLM-based analysis of test code."""
-    
+
     def __init__(self, llm_client: Optional[LLMClient] = None):
         self.client = llm_client or create_llm_client()
-    
+
     async def analyze_mergeability(
-        self, 
-        test1: TestFunctionInfo, 
-        test2: TestFunctionInfo,
-        context: ParsedTestFile
+        self, test1: TestFunctionInfo, test2: TestFunctionInfo, context: ParsedTestFile
     ) -> Optional[Issue]:
         """Check if two tests can be merged."""
         try:
@@ -160,24 +157,27 @@ class LLMAnalyzer:
                 test_function_2_code=test2.source_code,
                 class_name=test1.class_name or "module-level",
                 module_name=context.file_path,
-                total_tests=len(context.test_functions) + sum(len(cls.methods) for cls in context.test_classes)
+                total_tests=len(context.test_functions)
+                + sum(len(cls.methods) for cls in context.test_classes),
             )
-            
-            response = await self.client.chat_completion([
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ])
-            
+
+            response = await self.client.chat_completion(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ]
+            )
+
             result = json.loads(response)
-            
+
             if result["mergeable"] and result["confidence"] > 0.7:
                 suggestion = IssueSuggestion(
                     action="replace",
                     old_code=f"{test1.source_code}\n\n{test2.source_code}",
                     new_code=f"# TODO: Merged test function\n# {result['reason']}",
-                    explanation=result["reason"]
+                    explanation=result["reason"],
                 )
-                
+
                 return Issue(
                     file=context.file_path,
                     line=test1.line_number,
@@ -186,144 +186,155 @@ class LLMAnalyzer:
                     type="mergeable-tests",
                     message=f"Tests '{test1.name}' and '{test2.name}' could be merged: {result['reason']}",
                     detected_by="llm",
-                    suggestion=suggestion
+                    suggestion=suggestion,
                 )
-            
+
             return None
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM response as JSON: {e}")
             return None
         except Exception as e:
             logger.error(f"Error in mergeability analysis: {e}")
             return None
-    
+
     async def analyze_assertion_quality(
-        self, 
+        self,
         test_func: TestFunctionInfo,
         context: ParsedTestFile,
-        implementation_code: Optional[str] = None
+        implementation_code: Optional[str] = None,
     ) -> List[Issue]:
         """Analyze assertion quality in a test function."""
         try:
             system_prompt = ASSERTION_QUALITY_SYSTEM_PROMPT
             user_prompt = ASSERTION_QUALITY_USER_PROMPT.format(
                 test_function_code=test_func.source_code,
-                implementation_code=implementation_code or "# Implementation not available"
+                implementation_code=implementation_code
+                or "# Implementation not available",
             )
-            
-            response = await self.client.chat_completion([
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ])
-            
+
+            response = await self.client.chat_completion(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ]
+            )
+
             result = json.loads(response)
-            
+
             issues = []
             for issue_data in result.get("issues", []):
-                if issue_data["confidence"] > 0.7:  # Only include high-confidence issues
+                if (
+                    issue_data["confidence"] > 0.7
+                ):  # Only include high-confidence issues
                     suggestion = IssueSuggestion(
                         action="replace",
                         old_code=None,  # Could be extracted from line number
                         new_code=issue_data.get("example_code"),
-                        explanation=issue_data["suggestion"]
+                        explanation=issue_data["suggestion"],
                     )
-                    
-                    issues.append(Issue(
-                        file=context.file_path,
-                        line=test_func.line_number + issue_data["line"] - 1,
-                        column=0,
-                        severity=issue_data["severity"],
-                        type=f"llm-{issue_data['type']}",
-                        message=issue_data["message"],
-                        detected_by="llm",
-                        suggestion=suggestion
-                    ))
-            
+
+                    issues.append(
+                        Issue(
+                            file=context.file_path,
+                            line=test_func.line_number + issue_data["line"] - 1,
+                            column=0,
+                            severity=issue_data["severity"],
+                            type=f"llm-{issue_data['type']}",
+                            message=issue_data["message"],
+                            detected_by="llm",
+                            suggestion=suggestion,
+                        )
+                    )
+
             return issues
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM response as JSON: {e}")
             return []
         except Exception as e:
             logger.error(f"Error in assertion quality analysis: {e}")
             return []
-    
+
     async def analyze_test_smells(
-        self, 
+        self,
         test_func: TestFunctionInfo,
         context: ParsedTestFile,
-        test_class_code: Optional[str] = None
+        test_class_code: Optional[str] = None,
     ) -> List[Issue]:
         """Analyze test code smells."""
         try:
             system_prompt = TEST_SMELL_SYSTEM_PROMPT
             user_prompt = TEST_SMELL_USER_PROMPT.format(
                 test_function_code=test_func.source_code,
-                test_class_code=test_class_code or "# No test class context"
+                test_class_code=test_class_code or "# No test class context",
             )
-            
-            response = await self.client.chat_completion([
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ])
-            
+
+            response = await self.client.chat_completion(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ]
+            )
+
             result = json.loads(response)
-            
+
             issues = []
             for smell_data in result.get("smells", []):
-                if smell_data.get("confidence", 1.0) > 0.7:  # Only include high-confidence issues
+                if (
+                    smell_data.get("confidence", 1.0) > 0.7
+                ):  # Only include high-confidence issues
                     suggestion = IssueSuggestion(
                         action="replace",
                         old_code=None,
                         new_code=smell_data.get("example_code"),
-                        explanation=f"{smell_data['description']}. {smell_data['suggestion']}"
+                        explanation=f"{smell_data['description']}. {smell_data['suggestion']}",
                     )
-                    
-                    issues.append(Issue(
-                        file=context.file_path,
-                        line=test_func.line_number + smell_data["line"] - 1,
-                        column=0,
-                        severity=smell_data["severity"],
-                        type=f"test-smell-{smell_data['type']}",
-                        message=f"Test smell: {smell_data['description']}",
-                        detected_by="llm",
-                        suggestion=suggestion
-                    ))
-            
+
+                    issues.append(
+                        Issue(
+                            file=context.file_path,
+                            line=test_func.line_number + smell_data["line"] - 1,
+                            column=0,
+                            severity=smell_data["severity"],
+                            type=f"test-smell-{smell_data['type']}",
+                            message=f"Test smell: {smell_data['description']}",
+                            detected_by="llm",
+                            suggestion=suggestion,
+                        )
+                    )
+
             return issues
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM response as JSON: {e}")
             return []
         except Exception as e:
             logger.error(f"Error in test smell analysis: {e}")
             return []
-    
+
     async def find_similar_tests(
-        self, 
-        test_functions: List[TestFunctionInfo],
-        context: ParsedTestFile
+        self, test_functions: List[TestFunctionInfo], context: ParsedTestFile
     ) -> List[Tuple[TestFunctionInfo, TestFunctionInfo]]:
         """Find pairs of test functions that might be mergeable."""
         similar_pairs = []
-        
+
         # Simple heuristic: tests with similar names in the same class
         for i, test1 in enumerate(test_functions):
-            for j, test2 in enumerate(test_functions[i+1:], i+1):
+            for j, test2 in enumerate(test_functions[i + 1 :], i + 1):
                 # Check if tests are in the same class (or both at module level)
                 if test1.class_name == test2.class_name:
                     # Check for similar names
                     name1_parts = test1.name.split("_")
                     name2_parts = test2.name.split("_")
-                    
+
                     # If they share most words, they might be similar
                     common_parts = set(name1_parts) & set(name2_parts)
                     if len(common_parts) >= min(len(name1_parts), len(name2_parts)) - 1:
                         similar_pairs.append((test1, test2))
-        
+
         return similar_pairs
-    
+
     async def close(self) -> None:
         """Close the LLM client."""
         await self.client.close()

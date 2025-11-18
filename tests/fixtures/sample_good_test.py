@@ -10,11 +10,7 @@ import pytest
 @pytest.fixture
 def sample_data():
     """Provide sample data for tests."""
-    return {
-        "name": "Test User",
-        "age": 30,
-        "email": "test@example.com"
-    }
+    return {"name": "Test User", "age": 30, "email": "test@example.com"}
 
 
 def test_simple_assertion():

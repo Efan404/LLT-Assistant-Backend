@@ -42,6 +42,7 @@ packages = ["app"]
 [tool.black]
 line-length = 88
 target-version = ['py311']
+extend-exclude = 'tests/fixtures/sample_syntax_error\.py'
 
 [tool.isort]
 profile = "black"
