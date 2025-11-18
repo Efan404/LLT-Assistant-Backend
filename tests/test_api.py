@@ -3,8 +3,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
 from app.api.v1.schemas import AnalyzeRequest, FileInput
+from app.main import app
 
 
 class TestAPI:

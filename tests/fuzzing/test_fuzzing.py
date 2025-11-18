@@ -5,8 +5,9 @@ Tests generate random inputs to find edge cases and potential bugs.
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings, HealthCheck
 from fastapi.testclient import TestClient
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 from app.main import app
 

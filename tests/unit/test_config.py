@@ -5,9 +5,10 @@ Tests cover settings loading, environment variable overrides,
 and validation.
 """
 
-import pytest
 import os
 from unittest.mock import patch
+
+import pytest
 
 from app.config import Settings, settings
 

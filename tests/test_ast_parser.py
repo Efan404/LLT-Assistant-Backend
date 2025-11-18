@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.analyzers.ast_parser import parse_test_file, TestFunctionInfo
+from app.analyzers.ast_parser import TestFunctionInfo, parse_test_file
 
 
 class TestASTParser:
@@ -56,7 +56,7 @@ class TestUser:
     def test_user_age(self):
         user = User(age=25)
         assert user.age == 25
-    
+
     def test_user_name(self):
         user = User(name="Alice")
         assert user.name == "Alice"

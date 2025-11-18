@@ -5,8 +5,8 @@ from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.v1.schemas import AnalyzeRequest, AnalyzeResponse, AnalysisMetrics, Issue
 from app.analyzers.rule_engine import RuleEngine
+from app.api.v1.schemas import AnalysisMetrics, AnalyzeRequest, AnalyzeResponse, Issue
 from app.core.analyzer import TestAnalyzer
 from app.core.llm_analyzer import LLMAnalyzer
 from app.core.llm_client import create_llm_client

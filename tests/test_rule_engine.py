@@ -4,9 +4,9 @@ import pytest
 
 from app.analyzers.ast_parser import parse_test_file
 from app.analyzers.rule_engine import (
-    RuleEngine,
-    RedundantAssertionRule,
     MissingAssertionRule,
+    RedundantAssertionRule,
+    RuleEngine,
 )
 
 

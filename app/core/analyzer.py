@@ -9,11 +9,11 @@ from typing import Dict, List, Optional, Set
 from app.analyzers.ast_parser import ParsedTestFile, parse_test_file
 from app.analyzers.rule_engine import RuleEngine
 from app.api.v1.schemas import (
+    AnalysisMetrics,
     AnalyzeRequest,
     AnalyzeResponse,
-    AnalysisMetrics,
-    Issue,
     FileInput,
+    Issue,
 )
 from app.core.llm_analyzer import LLMAnalyzer
 from app.core.llm_client import create_llm_client

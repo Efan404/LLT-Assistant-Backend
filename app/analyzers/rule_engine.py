@@ -4,7 +4,7 @@ import ast
 from abc import ABC, abstractmethod
 from typing import List, Set
 
-from app.analyzers.ast_parser import ParsedTestFile, TestFunctionInfo, AssertionInfo
+from app.analyzers.ast_parser import AssertionInfo, ParsedTestFile, TestFunctionInfo
 from app.api.v1.schemas import Issue, IssueSuggestion
 
 

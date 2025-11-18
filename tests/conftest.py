@@ -7,18 +7,18 @@ and fuzzing tests to ensure consistency and reduce code duplication.
 
 import os
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
-from app.core.llm_client import LLMClient
-from app.core.analyzer import TestAnalyzer
-from app.analyzers.rule_engine import RuleEngine
 from app.analyzers.ast_parser import parse_test_file
+from app.analyzers.rule_engine import RuleEngine
 from app.config import Settings
+from app.core.analyzer import TestAnalyzer
+from app.core.llm_client import LLMClient
+from app.main import app
 
 
 @pytest.fixture(scope="session")

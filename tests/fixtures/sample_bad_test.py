@@ -4,8 +4,9 @@ Sample pytest test file with intentional quality issues.
 This file is used to test the analyzer's ability to detect various test smells.
 """
 
-import pytest
 import time
+
+import pytest
 
 
 @pytest.fixture

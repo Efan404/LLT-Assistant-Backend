@@ -5,16 +5,17 @@ Tests cover the main analysis orchestration, file parsing,
 rule/LLM integration, and metric calculation.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from typing import List
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from app.core.analyzer import TestAnalyzer
+import pytest
+
+from app.analyzers.ast_parser import AssertionInfo, ParsedTestFile, TestFunctionInfo
 from app.analyzers.rule_engine import RuleEngine
-from app.analyzers.ast_parser import ParsedTestFile, TestFunctionInfo, AssertionInfo
-from app.core.llm_analyzer import LLMAnalyzer
 from app.api.v1.schemas import FileInput, Issue
+from app.core.analyzer import TestAnalyzer
+from app.core.llm_analyzer import LLMAnalyzer
 
 
 @pytest.fixture

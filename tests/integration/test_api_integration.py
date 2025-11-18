@@ -5,9 +5,10 @@ Tests cover complete request-response cycles, real analysis workflows,
 and integration between components.
 """
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
-from pathlib import Path
 
 from app.main import app
 

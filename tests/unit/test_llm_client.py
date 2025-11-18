@@ -5,17 +5,18 @@ Tests cover API interactions, retry logic, error handling,
 and integration with real LLM API.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
 import httpx
+import pytest
 
 from app.core.llm_client import (
+    LLMAPIError,
     LLMClient,
     LLMClientError,
     LLMRateLimitError,
     LLMTimeoutError,
-    LLMAPIError,
     create_llm_client,
 )
 
