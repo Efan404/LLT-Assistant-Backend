@@ -11,7 +11,9 @@ class JSONSchemaValidator:
     """Validates JSON structure of LLM outputs."""
 
     @staticmethod
-    def validate_mergeability_output(output: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+    def validate_mergeability_output(
+        output: Dict[str, Any],
+    ) -> Tuple[bool, Optional[str]]:
         """
         Validate mergeability analysis output schema.
 
@@ -37,31 +39,46 @@ class JSONSchemaValidator:
                 return False, f"Missing required field: {field}"
 
         if not isinstance(output["mergeable"], bool):
-            return False, f"Field 'mergeable' must be boolean, got {type(output['mergeable'])}"
+            return (
+                False,
+                f"Field 'mergeable' must be boolean, got {type(output['mergeable'])}",
+            )
 
         if not isinstance(output["confidence"], (int, float)):
-            return False, f"Field 'confidence' must be numeric, got {type(output['confidence'])}"
+            return (
+                False,
+                f"Field 'confidence' must be numeric, got {type(output['confidence'])}",
+            )
 
         if not (0.0 <= output["confidence"] <= 1.0):
-            return False, f"Field 'confidence' must be between 0.0 and 1.0, got {output['confidence']}"
+            return (
+                False,
+                f"Field 'confidence' must be between 0.0 and 1.0, got {output['confidence']}",
+            )
 
         if not isinstance(output["reason"], str):
             return False, f"Field 'reason' must be string, got {type(output['reason'])}"
 
         if not isinstance(output["concerns"], list):
-            return False, f"Field 'concerns' must be list, got {type(output['concerns'])}"
+            return (
+                False,
+                f"Field 'concerns' must be list, got {type(output['concerns'])}",
+            )
 
         if "merged_test_name" in output:
             if output["merged_test_name"] is not None and not isinstance(
                 output["merged_test_name"], str
             ):
-                return False, f"Field 'merged_test_name' must be string or null, got {type(output['merged_test_name'])}"
+                return (
+                    False,
+                    f"Field 'merged_test_name' must be string or null, got {type(output['merged_test_name'])}",
+                )
 
         return True, None
 
     @staticmethod
     def validate_assertion_quality_output(
-        output: Dict[str, Any]
+        output: Dict[str, Any],
     ) -> Tuple[bool, Optional[str]]:
         """
         Validate assertion quality analysis output schema.
@@ -104,25 +121,42 @@ class JSONSchemaValidator:
                     return False, f"Issue at index {idx} missing field: {issue_field}"
 
             if "line" in issue and not isinstance(issue["line"], int):
-                return False, f"Issue at index {idx}: 'line' must be int, got {type(issue['line'])}"
+                return (
+                    False,
+                    f"Issue at index {idx}: 'line' must be int, got {type(issue['line'])}",
+                )
 
         if not isinstance(output["overall_quality"], str):
-            return False, f"Field 'overall_quality' must be string, got {type(output['overall_quality'])}"
+            return (
+                False,
+                f"Field 'overall_quality' must be string, got {type(output['overall_quality'])}",
+            )
 
         valid_qualities = ["poor", "fair", "good", "excellent"]
         if output["overall_quality"] not in valid_qualities:
-            return False, f"Field 'overall_quality' must be one of {valid_qualities}, got '{output['overall_quality']}'"
+            return (
+                False,
+                f"Field 'overall_quality' must be one of {valid_qualities}, got '{output['overall_quality']}'",
+            )
 
         if not isinstance(output["confidence"], (int, float)):
-            return False, f"Field 'confidence' must be numeric, got {type(output['confidence'])}"
+            return (
+                False,
+                f"Field 'confidence' must be numeric, got {type(output['confidence'])}",
+            )
 
         if not (0.0 <= output["confidence"] <= 1.0):
-            return False, f"Field 'confidence' must be between 0.0 and 1.0, got {output['confidence']}"
+            return (
+                False,
+                f"Field 'confidence' must be between 0.0 and 1.0, got {output['confidence']}",
+            )
 
         return True, None
 
     @staticmethod
-    def validate_test_smell_output(output: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+    def validate_test_smell_output(
+        output: Dict[str, Any],
+    ) -> Tuple[bool, Optional[str]]:
         """
         Validate test smell detection output schema.
 
@@ -163,17 +197,29 @@ class JSONSchemaValidator:
                     return False, f"Smell at index {idx} missing field: {smell_field}"
 
             if "line" in smell and not isinstance(smell["line"], int):
-                return False, f"Smell at index {idx}: 'line' must be int, got {type(smell['line'])}"
+                return (
+                    False,
+                    f"Smell at index {idx}: 'line' must be int, got {type(smell['line'])}",
+                )
 
             valid_severities = ["info", "warning", "error"]
             if smell["severity"] not in valid_severities:
-                return False, f"Smell at index {idx}: 'severity' must be one of {valid_severities}, got '{smell['severity']}'"
+                return (
+                    False,
+                    f"Smell at index {idx}: 'severity' must be one of {valid_severities}, got '{smell['severity']}'",
+                )
 
         if not isinstance(output["confidence"], (int, float)):
-            return False, f"Field 'confidence' must be numeric, got {type(output['confidence'])}"
+            return (
+                False,
+                f"Field 'confidence' must be numeric, got {type(output['confidence'])}",
+            )
 
         if not (0.0 <= output["confidence"] <= 1.0):
-            return False, f"Field 'confidence' must be between 0.0 and 1.0, got {output['confidence']}"
+            return (
+                False,
+                f"Field 'confidence' must be between 0.0 and 1.0, got {output['confidence']}",
+            )
 
         return True, None
 
@@ -202,15 +248,16 @@ class JSONSchemaValidator:
 
         if mergeability_outputs:
             for idx, output in enumerate(mergeability_outputs):
-                is_valid, error = JSONSchemaValidator.validate_mergeability_output(output)
+                is_valid, error = JSONSchemaValidator.validate_mergeability_output(
+                    output
+                )
                 if is_valid:
                     results["mergeability"]["valid_count"] += 1
                 else:
                     results["mergeability"]["invalid_count"] += 1
-                    results["mergeability"]["errors"].append({
-                        "index": idx,
-                        "error": error
-                    })
+                    results["mergeability"]["errors"].append(
+                        {"index": idx, "error": error}
+                    )
 
         if assertion_outputs:
             for idx, output in enumerate(assertion_outputs):
@@ -221,10 +268,9 @@ class JSONSchemaValidator:
                     results["assertion_quality"]["valid_count"] += 1
                 else:
                     results["assertion_quality"]["invalid_count"] += 1
-                    results["assertion_quality"]["errors"].append({
-                        "index": idx,
-                        "error": error
-                    })
+                    results["assertion_quality"]["errors"].append(
+                        {"index": idx, "error": error}
+                    )
 
         if smell_outputs:
             for idx, output in enumerate(smell_outputs):
@@ -233,10 +279,14 @@ class JSONSchemaValidator:
                     results["test_smells"]["valid_count"] += 1
                 else:
                     results["test_smells"]["invalid_count"] += 1
-                    results["test_smells"]["errors"].append({"index": idx, "error": error})
+                    results["test_smells"]["errors"].append(
+                        {"index": idx, "error": error}
+                    )
 
         for category in results:
-            total = results[category]["valid_count"] + results[category]["invalid_count"]
+            total = (
+                results[category]["valid_count"] + results[category]["invalid_count"]
+            )
             results[category]["total"] = total
             results[category]["validity_rate"] = (
                 (results[category]["valid_count"] / total * 100) if total > 0 else 0.0

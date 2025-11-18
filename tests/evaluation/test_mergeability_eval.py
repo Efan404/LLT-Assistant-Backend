@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 
 import pytest
 
+from tests.evaluation.conftest import parse_test_code_to_objects
 from tests.evaluation.metrics.custom_metrics import EvaluationMetrics
 from tests.evaluation.metrics.json_validators import JSONSchemaValidator
 
@@ -46,14 +47,24 @@ class TestMergeabilityEvaluation:
 
         for idx, test_case in enumerate(test_cases, 1):
             test_id = test_case["id"]
-            func1 = test_case["test_function_1"]
-            func2 = test_case["test_function_2"]
+            func1_code = test_case["test_function_1"]
+            func2_code = test_case["test_function_2"]
             expected = test_case["expected_output"]
 
             print(f"[{idx}/{len(test_cases)}] Evaluating {test_id}...", end=" ")
 
             try:
-                result = await llm_analyzer_for_eval.analyze_mergeability(func1, func2)
+                # Parse test code strings into proper objects
+                test1_info, context1 = parse_test_code_to_objects(
+                    func1_code, f"{test_id}_func1.py"
+                )
+                test2_info, _ = parse_test_code_to_objects(
+                    func2_code, f"{test_id}_func2.py"
+                )
+
+                result = await llm_analyzer_for_eval.analyze_mergeability(
+                    test1_info, test2_info, context1
+                )
 
                 is_valid, error = JSONSchemaValidator.validate_mergeability_output(
                     result
@@ -104,7 +115,9 @@ class TestMergeabilityEvaluation:
         print(f"  False Negatives: {metrics['false_negatives']}")
         print(f"  True Negatives: {metrics['true_negatives']}")
         print(f"\nConfidence Calibration:")
-        print(f"  Expected Calibration Error: {calibration['expected_calibration_error']:.4f}")
+        print(
+            f"  Expected Calibration Error: {calibration['expected_calibration_error']:.4f}"
+        )
         print(f"  Bin Accuracies: {calibration['bin_accuracies']}")
         print(f"  Bin Confidences: {calibration['bin_confidences']}")
         print(f"  Bin Counts: {calibration['bin_counts']}")
@@ -139,10 +152,20 @@ class TestMergeabilityEvaluation:
         validation_results = []
 
         for test_case in test_cases:
-            func1 = test_case["test_function_1"]
-            func2 = test_case["test_function_2"]
+            func1_code = test_case["test_function_1"]
+            func2_code = test_case["test_function_2"]
 
-            result = await llm_analyzer_for_eval.analyze_mergeability(func1, func2)
+            # Parse test code strings into proper objects
+            test1_info, context1 = parse_test_code_to_objects(
+                func1_code, f"{test_case['id']}_func1.py"
+            )
+            test2_info, _ = parse_test_code_to_objects(
+                func2_code, f"{test_case['id']}_func2.py"
+            )
+
+            result = await llm_analyzer_for_eval.analyze_mergeability(
+                test1_info, test2_info, context1
+            )
 
             is_valid, error = JSONSchemaValidator.validate_mergeability_output(result)
             validation_results.append({"valid": is_valid, "error": error})
@@ -150,7 +173,9 @@ class TestMergeabilityEvaluation:
         valid_count = sum(1 for r in validation_results if r["valid"])
         validity_rate = valid_count / len(validation_results) * 100
 
-        print(f"\nJSON Schema Validation: {valid_count}/{len(validation_results)} valid ({validity_rate:.1f}%)")
+        print(
+            f"\nJSON Schema Validation: {valid_count}/{len(validation_results)} valid ({validity_rate:.1f}%)"
+        )
 
         assert (
             validity_rate >= 90.0
@@ -173,10 +198,20 @@ class TestMergeabilityEvaluation:
         confidences = []
 
         for test_case in test_cases:
-            func1 = test_case["test_function_1"]
-            func2 = test_case["test_function_2"]
+            func1_code = test_case["test_function_1"]
+            func2_code = test_case["test_function_2"]
 
-            result = await llm_analyzer_for_eval.analyze_mergeability(func1, func2)
+            # Parse test code strings into proper objects
+            test1_info, context1 = parse_test_code_to_objects(
+                func1_code, f"{test_case['id']}_func1.py"
+            )
+            test2_info, _ = parse_test_code_to_objects(
+                func2_code, f"{test_case['id']}_func2.py"
+            )
+
+            result = await llm_analyzer_for_eval.analyze_mergeability(
+                test1_info, test2_info, context1
+            )
             confidence = result.get("confidence", 0.0)
             confidences.append(confidence)
 

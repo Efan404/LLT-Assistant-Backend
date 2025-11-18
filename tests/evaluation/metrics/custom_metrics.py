@@ -40,7 +40,9 @@ class EvaluationMetrics:
             1 for pred, truth in zip(predictions, ground_truth) if not pred and truth
         )
         true_negatives = sum(
-            1 for pred, truth in zip(predictions, ground_truth) if not pred and not truth
+            1
+            for pred, truth in zip(predictions, ground_truth)
+            if not pred and not truth
         )
 
         precision = (
@@ -107,7 +109,9 @@ class EvaluationMetrics:
             total_fp += len(pred_types - truth_types)
             total_fn += len(truth_types - pred_types)
 
-        precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
+        precision = (
+            total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
+        )
         recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0.0
         f1 = (
             2 * (precision * recall) / (precision + recall)
@@ -163,7 +167,9 @@ class EvaluationMetrics:
                 bin_confs = [confidences[idx] for idx in indices]
 
                 accuracy = sum(
-                    1 for pred, truth in zip(bin_predictions, bin_truths) if pred == truth
+                    1
+                    for pred, truth in zip(bin_predictions, bin_truths)
+                    if pred == truth
                 ) / len(indices)
                 avg_confidence = sum(bin_confs) / len(bin_confs)
 
@@ -175,10 +181,15 @@ class EvaluationMetrics:
                 bin_confidences.append(0.0)
                 bin_counts.append(0)
 
-        expected_calibration_error = sum(
-            count * abs(acc - conf)
-            for acc, conf, count in zip(bin_accuracies, bin_confidences, bin_counts)
-        ) / sum(bin_counts) if sum(bin_counts) > 0 else 0.0
+        expected_calibration_error = (
+            sum(
+                count * abs(acc - conf)
+                for acc, conf, count in zip(bin_accuracies, bin_confidences, bin_counts)
+            )
+            / sum(bin_counts)
+            if sum(bin_counts) > 0
+            else 0.0
+        )
 
         return {
             "expected_calibration_error": round(expected_calibration_error, 4),
@@ -247,12 +258,8 @@ class EvaluationMetrics:
             ground_truth_presence = []
 
             for pred_list, truth_list in zip(predicted_smells, ground_truth_smells):
-                pred_has = any(
-                    smell.get("type") == smell_type for smell in pred_list
-                )
-                truth_has = any(
-                    smell.get("type") == smell_type for smell in truth_list
-                )
+                pred_has = any(smell.get("type") == smell_type for smell in pred_list)
+                truth_has = any(smell.get("type") == smell_type for smell in truth_list)
 
                 predicted_presence.append(pred_has)
                 ground_truth_presence.append(truth_has)

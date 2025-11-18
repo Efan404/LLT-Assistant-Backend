@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 
 import pytest
 
+from tests.evaluation.conftest import parse_test_code_to_objects
 from tests.evaluation.metrics.custom_metrics import EvaluationMetrics
 from tests.evaluation.metrics.json_validators import JSONSchemaValidator
 
@@ -31,7 +32,9 @@ class TestAssertionQualityEvaluation:
 
         Measures precision, recall, and F1-score for detecting assertion issues.
         """
-        test_cases = ground_truth_assertion_quality["test_cases"][:evaluation_sample_size]
+        test_cases = ground_truth_assertion_quality["test_cases"][
+            :evaluation_sample_size
+        ]
 
         predicted_issues_list = []
         ground_truth_issues_list = []
@@ -47,14 +50,19 @@ class TestAssertionQualityEvaluation:
 
         for idx, test_case in enumerate(test_cases, 1):
             test_id = test_case["id"]
-            test_function = test_case["test_function"]
+            test_function_code = test_case["test_function"]
             expected = test_case["expected_output"]
 
             print(f"[{idx}/{len(test_cases)}] Evaluating {test_id}...", end=" ")
 
             try:
+                # Parse test code string into proper objects
+                test_func_info, context = parse_test_code_to_objects(
+                    test_function_code, f"{test_id}.py"
+                )
+
                 result = await llm_analyzer_for_eval.analyze_assertion_quality(
-                    test_function
+                    test_func_info, context
                 )
 
                 is_valid, error = JSONSchemaValidator.validate_assertion_quality_output(
@@ -102,9 +110,13 @@ class TestAssertionQualityEvaluation:
         )
 
         quality_agreement = sum(
-            1 for pred, truth in zip(predicted_qualities, ground_truth_qualities) if pred == truth
+            1
+            for pred, truth in zip(predicted_qualities, ground_truth_qualities)
+            if pred == truth
         )
-        quality_accuracy = quality_agreement / len(predicted_qualities) if predicted_qualities else 0.0
+        quality_accuracy = (
+            quality_agreement / len(predicted_qualities) if predicted_qualities else 0.0
+        )
 
         print(f"\n{'='*80}")
         print(f"ASSERTION QUALITY EVALUATION RESULTS")
@@ -152,10 +164,15 @@ class TestAssertionQualityEvaluation:
         validation_results = []
 
         for test_case in test_cases:
-            test_function = test_case["test_function"]
+            test_function_code = test_case["test_function"]
+
+            # Parse test code string into proper objects
+            test_func_info, context = parse_test_code_to_objects(
+                test_function_code, f"{test_case['id']}.py"
+            )
 
             result = await llm_analyzer_for_eval.analyze_assertion_quality(
-                test_function
+                test_func_info, context
             )
 
             is_valid, error = JSONSchemaValidator.validate_assertion_quality_output(
@@ -191,16 +208,23 @@ class TestAssertionQualityEvaluation:
         all_confidences = []
 
         for test_case in test_cases:
-            test_function = test_case["test_function"]
+            test_function_code = test_case["test_function"]
+
+            # Parse test code string into proper objects
+            test_func_info, context = parse_test_code_to_objects(
+                test_function_code, f"{test_case['id']}.py"
+            )
 
             result = await llm_analyzer_for_eval.analyze_assertion_quality(
-                test_function
+                test_func_info, context
             )
 
             overall_confidence = result.get("confidence", 0.0)
             all_confidences.append(overall_confidence)
 
-        avg_confidence = sum(all_confidences) / len(all_confidences) if all_confidences else 0.0
+        avg_confidence = (
+            sum(all_confidences) / len(all_confidences) if all_confidences else 0.0
+        )
         min_confidence = min(all_confidences) if all_confidences else 0.0
 
         print(f"\nConfidence Statistics:")

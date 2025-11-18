@@ -34,7 +34,9 @@ class EvaluationReportGenerator:
         """
         report = []
         report.append("# LLM Test Analysis Evaluation Report\n")
-        report.append(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        report.append(
+            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        )
         report.append("---\n\n")
 
         if mergeability_metrics:
@@ -42,10 +44,16 @@ class EvaluationReportGenerator:
             report.append("### Overall Metrics\n\n")
             report.append("| Metric | Value |\n")
             report.append("|--------|-------|\n")
-            report.append(f"| Precision | {mergeability_metrics.get('precision', 0):.4f} |\n")
+            report.append(
+                f"| Precision | {mergeability_metrics.get('precision', 0):.4f} |\n"
+            )
             report.append(f"| Recall | {mergeability_metrics.get('recall', 0):.4f} |\n")
-            report.append(f"| F1-Score | {mergeability_metrics.get('f1_score', 0):.4f} |\n")
-            report.append(f"| Accuracy | {mergeability_metrics.get('accuracy', 0):.4f} |\n")
+            report.append(
+                f"| F1-Score | {mergeability_metrics.get('f1_score', 0):.4f} |\n"
+            )
+            report.append(
+                f"| Accuracy | {mergeability_metrics.get('accuracy', 0):.4f} |\n"
+            )
             report.append("\n### Confusion Matrix\n\n")
             report.append("| Metric | Count |\n")
             report.append("|--------|-------|\n")
@@ -68,9 +76,13 @@ class EvaluationReportGenerator:
             report.append("### Overall Metrics\n\n")
             report.append("| Metric | Value |\n")
             report.append("|--------|-------|\n")
-            report.append(f"| Precision | {assertion_metrics.get('precision', 0):.4f} |\n")
+            report.append(
+                f"| Precision | {assertion_metrics.get('precision', 0):.4f} |\n"
+            )
             report.append(f"| Recall | {assertion_metrics.get('recall', 0):.4f} |\n")
-            report.append(f"| F1-Score | {assertion_metrics.get('f1_score', 0):.4f} |\n")
+            report.append(
+                f"| F1-Score | {assertion_metrics.get('f1_score', 0):.4f} |\n"
+            )
             report.append(
                 f"| Quality Accuracy | {assertion_metrics.get('quality_accuracy', 0):.4f} |\n"
             )
@@ -109,7 +121,9 @@ class EvaluationReportGenerator:
             report.append("\n### Detection Counts\n\n")
             report.append("| Metric | Count |\n")
             report.append("|--------|-------|\n")
-            report.append(f"| True Positives | {smell_metrics.get('true_positives', 0)} |\n")
+            report.append(
+                f"| True Positives | {smell_metrics.get('true_positives', 0)} |\n"
+            )
             report.append(
                 f"| False Positives | {smell_metrics.get('false_positives', 0)} |\n"
             )
@@ -119,8 +133,12 @@ class EvaluationReportGenerator:
 
             if "by_type" in smell_metrics:
                 report.append("\n### Metrics by Smell Type\n\n")
-                report.append("| Smell Type | Precision | Recall | F1-Score | Support |\n")
-                report.append("|-----------|-----------|--------|----------|--------|\n")
+                report.append(
+                    "| Smell Type | Precision | Recall | F1-Score | Support |\n"
+                )
+                report.append(
+                    "|-----------|-----------|--------|----------|--------|\n"
+                )
                 for smell_type, metrics in sorted(smell_metrics["by_type"].items()):
                     report.append(
                         f"| {smell_type} | {metrics['precision']:.4f} | "
@@ -132,8 +150,12 @@ class EvaluationReportGenerator:
 
         report.append("## Summary\n\n")
         report.append("### Target Metrics\n\n")
-        report.append("| Analysis Type | Precision Target | Recall Target | F1 Target |\n")
-        report.append("|--------------|------------------|---------------|----------|\n")
+        report.append(
+            "| Analysis Type | Precision Target | Recall Target | F1 Target |\n"
+        )
+        report.append(
+            "|--------------|------------------|---------------|----------|\n"
+        )
         report.append("| Mergeability | ≥ 0.75 | ≥ 0.70 | ≥ 0.72 |\n")
         report.append("| Assertion Quality | ≥ 0.70 | ≥ 0.65 | ≥ 0.67 |\n")
         report.append("| Test Smells | ≥ 0.70 | ≥ 0.65 | ≥ 0.67 |\n")
@@ -147,9 +169,7 @@ class EvaluationReportGenerator:
         return report_content
 
     @staticmethod
-    def save_baseline_metrics(
-        metrics: Dict[str, Any], output_path: Path
-    ) -> None:
+    def save_baseline_metrics(metrics: Dict[str, Any], output_path: Path) -> None:
         """
         Save baseline metrics to JSON file.
 

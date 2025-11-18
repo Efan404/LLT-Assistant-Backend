@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 
 import pytest
 
+from tests.evaluation.conftest import parse_test_code_to_objects
 from tests.evaluation.metrics.custom_metrics import EvaluationMetrics
 from tests.evaluation.metrics.json_validators import JSONSchemaValidator
 
@@ -45,13 +46,20 @@ class TestSmellDetectionEvaluation:
 
         for idx, test_case in enumerate(test_cases, 1):
             test_id = test_case["id"]
-            test_function = test_case["test_function"]
+            test_function_code = test_case["test_function"]
             expected = test_case["expected_output"]
 
             print(f"[{idx}/{len(test_cases)}] Evaluating {test_id}...", end=" ")
 
             try:
-                result = await llm_analyzer_for_eval.analyze_test_smells(test_function)
+                # Parse test code string into proper objects
+                test_func_info, context = parse_test_code_to_objects(
+                    test_function_code, f"{test_id}.py"
+                )
+
+                result = await llm_analyzer_for_eval.analyze_test_smells(
+                    test_func_info, context
+                )
 
                 is_valid, error = JSONSchemaValidator.validate_test_smell_output(result)
                 if not is_valid:
@@ -85,8 +93,10 @@ class TestSmellDetectionEvaluation:
             predicted_smells_list, ground_truth_smells_list, match_by="type"
         )
 
-        smell_type_metrics = EvaluationMetrics.calculate_smell_detection_metrics_by_type(
-            predicted_smells_list, ground_truth_smells_list
+        smell_type_metrics = (
+            EvaluationMetrics.calculate_smell_detection_metrics_by_type(
+                predicted_smells_list, ground_truth_smells_list
+            )
         )
 
         print(f"\n{'='*80}")
@@ -105,9 +115,7 @@ class TestSmellDetectionEvaluation:
             print(f"\nMetrics by Smell Type:")
             for smell_type, metrics in sorted(smell_type_metrics.items()):
                 if metrics["support"] > 0:
-                    print(
-                        f"  {smell_type}:"
-                    )
+                    print(f"  {smell_type}:")
                     print(f"    Precision: {metrics['precision']:.4f}")
                     print(f"    Recall: {metrics['recall']:.4f}")
                     print(f"    F1-Score: {metrics['f1_score']:.4f}")
@@ -144,9 +152,16 @@ class TestSmellDetectionEvaluation:
         validation_results = []
 
         for test_case in test_cases:
-            test_function = test_case["test_function"]
+            test_function_code = test_case["test_function"]
 
-            result = await llm_analyzer_for_eval.analyze_test_smells(test_function)
+            # Parse test code string into proper objects
+            test_func_info, context = parse_test_code_to_objects(
+                test_function_code, f"{test_case['id']}.py"
+            )
+
+            result = await llm_analyzer_for_eval.analyze_test_smells(
+                test_func_info, context
+            )
 
             is_valid, error = JSONSchemaValidator.validate_test_smell_output(result)
             validation_results.append({"valid": is_valid, "error": error})
@@ -177,14 +192,23 @@ class TestSmellDetectionEvaluation:
         all_confidences = []
 
         for test_case in test_cases:
-            test_function = test_case["test_function"]
+            test_function_code = test_case["test_function"]
 
-            result = await llm_analyzer_for_eval.analyze_test_smells(test_function)
+            # Parse test code string into proper objects
+            test_func_info, context = parse_test_code_to_objects(
+                test_function_code, f"{test_case['id']}.py"
+            )
+
+            result = await llm_analyzer_for_eval.analyze_test_smells(
+                test_func_info, context
+            )
 
             confidence = result.get("confidence", 0.0)
             all_confidences.append(confidence)
 
-        avg_confidence = sum(all_confidences) / len(all_confidences) if all_confidences else 0.0
+        avg_confidence = (
+            sum(all_confidences) / len(all_confidences) if all_confidences else 0.0
+        )
         min_confidence = min(all_confidences) if all_confidences else 0.0
 
         print(f"\nConfidence Statistics:")
@@ -222,9 +246,16 @@ class TestSmellDetectionEvaluation:
         total_tested = 0
 
         for test_case in test_cases:
-            test_function = test_case["test_function"]
+            test_function_code = test_case["test_function"]
 
-            result = await llm_analyzer_for_eval.analyze_test_smells(test_function)
+            # Parse test code string into proper objects
+            test_func_info, context = parse_test_code_to_objects(
+                test_function_code, f"{test_case['id']}.py"
+            )
+
+            result = await llm_analyzer_for_eval.analyze_test_smells(
+                test_func_info, context
+            )
 
             detected_smells = result.get("smells", [])
             if detected_smells:
@@ -232,7 +263,9 @@ class TestSmellDetectionEvaluation:
 
             total_tested += 1
 
-        false_positive_rate = false_positives / total_tested if total_tested > 0 else 0.0
+        false_positive_rate = (
+            false_positives / total_tested if total_tested > 0 else 0.0
+        )
 
         print(f"\nFalse Positive Rate on Clean Code:")
         print(f"  Total clean tests: {total_tested}")
