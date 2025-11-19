@@ -8,9 +8,9 @@ import pytest
 
 from app.agents.context import AgentContext
 from app.agents.input_processing import (
-    InputProcessingAgent,
-    MAX_FILES,
     MAX_FILE_SIZE_BYTES,
+    MAX_FILES,
+    InputProcessingAgent,
 )
 from app.api.v1.schemas import FileInput
 

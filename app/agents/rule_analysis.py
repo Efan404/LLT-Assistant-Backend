@@ -110,7 +110,9 @@ class RuleAnalysisAgent(BaseAgent):
             issue_counts_by_severity[issue.severity] = (
                 issue_counts_by_severity.get(issue.severity, 0) + 1
             )
-            issue_counts_by_type[issue.type] = issue_counts_by_type.get(issue.type, 0) + 1
+            issue_counts_by_type[issue.type] = (
+                issue_counts_by_type.get(issue.type, 0) + 1
+            )
 
         data = {
             "issue_count": len(all_issues),

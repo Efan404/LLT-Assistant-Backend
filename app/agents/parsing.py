@@ -72,7 +72,9 @@ class ParsingAgent(BaseAgent):
                     self.logger.warning(warning_msg)
                     warnings.append(warning_msg)
             else:
-                error_msg = f"Unexpected result type for {file_input.path}: {type(result)}"
+                error_msg = (
+                    f"Unexpected result type for {file_input.path}: {type(result)}"
+                )
                 self.logger.error(error_msg)
                 errors.append(error_msg)
 

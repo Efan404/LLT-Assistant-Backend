@@ -72,9 +72,7 @@ class InputProcessingAgent(BaseAgent):
             # Check file size
             file_size = len(file_input.content.encode("utf-8"))
             if file_size > MAX_FILE_SIZE_BYTES:
-                oversized_files.append(
-                    f"{file_input.path} ({file_size / 1024:.1f} KB)"
-                )
+                oversized_files.append(f"{file_input.path} ({file_size / 1024:.1f} KB)")
 
             # Check for empty files
             if not file_input.content.strip():

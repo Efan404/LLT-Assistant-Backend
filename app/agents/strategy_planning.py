@@ -6,7 +6,7 @@ characteristics and determines the best execution strategy for analysis.
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 from app.agents.base import BaseAgent
 from app.agents.context import AgentContext, AgentResult

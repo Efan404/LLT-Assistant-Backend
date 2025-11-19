@@ -27,11 +27,13 @@ class TestLLMAnalysisAgent:
         # Mock LLM client
         mock_client = MagicMock()
         mock_client.chat_completion = AsyncMock(
-            return_value=json.dumps({
-                "issues": [],
-                "overall_quality": "good",
-                "confidence": 0.9,
-            })
+            return_value=json.dumps(
+                {
+                    "issues": [],
+                    "overall_quality": "good",
+                    "confidence": 0.9,
+                }
+            )
         )
         mock_client.close = AsyncMock()
         mock_get_client.return_value = mock_client
@@ -61,11 +63,13 @@ class TestLLMAnalysisAgent:
         # Mock LLM client
         mock_client = MagicMock()
         mock_client.chat_completion = AsyncMock(
-            return_value=json.dumps({
-                "issues": [],
-                "overall_quality": "good",
-                "confidence": 0.9,
-            })
+            return_value=json.dumps(
+                {
+                    "issues": [],
+                    "overall_quality": "good",
+                    "confidence": 0.9,
+                }
+            )
         )
         mock_client.close = AsyncMock()
         mock_get_client.return_value = mock_client
@@ -111,21 +115,23 @@ class TestLLMAnalysisAgent:
         # Mock LLM client with assertion issues
         mock_client = MagicMock()
         mock_client.chat_completion = AsyncMock(
-            return_value=json.dumps({
-                "issues": [
-                    {
-                        "type": "weak-assertion",
-                        "line": 2,
-                        "severity": "warning",
-                        "message": "Assertion could be more specific",
-                        "suggestion": "Use more specific assertion",
-                        "example_code": "assert result == 2",
-                        "confidence": 0.85,
-                    }
-                ],
-                "overall_quality": "fair",
-                "confidence": 0.8,
-            })
+            return_value=json.dumps(
+                {
+                    "issues": [
+                        {
+                            "type": "weak-assertion",
+                            "line": 2,
+                            "severity": "warning",
+                            "message": "Assertion could be more specific",
+                            "suggestion": "Use more specific assertion",
+                            "example_code": "assert result == 2",
+                            "confidence": 0.85,
+                        }
+                    ],
+                    "overall_quality": "fair",
+                    "confidence": 0.8,
+                }
+            )
         )
         mock_client.close = AsyncMock()
         mock_get_client.return_value = mock_client
@@ -158,27 +164,31 @@ class TestLLMAnalysisAgent:
         mock_client.chat_completion = AsyncMock(
             side_effect=[
                 # First call - assertion quality (empty)
-                json.dumps({
-                    "issues": [],
-                    "overall_quality": "good",
-                    "confidence": 0.9,
-                }),
+                json.dumps(
+                    {
+                        "issues": [],
+                        "overall_quality": "good",
+                        "confidence": 0.9,
+                    }
+                ),
                 # Second call - test smells
-                json.dumps({
-                    "smells": [
-                        {
-                            "type": "timing-dependent",
-                            "line": 2,
-                            "severity": "warning",
-                            "description": "Uses time.sleep",
-                            "impact": "Can cause flaky tests",
-                            "suggestion": "Use mock time",
-                            "example_code": "mock.patch('time.sleep')",
-                            "confidence": 0.9,
-                        }
-                    ],
-                    "confidence": 0.85,
-                }),
+                json.dumps(
+                    {
+                        "smells": [
+                            {
+                                "type": "timing-dependent",
+                                "line": 2,
+                                "severity": "warning",
+                                "description": "Uses time.sleep",
+                                "impact": "Can cause flaky tests",
+                                "suggestion": "Use mock time",
+                                "example_code": "mock.patch('time.sleep')",
+                                "confidence": 0.9,
+                            }
+                        ],
+                        "confidence": 0.85,
+                    }
+                ),
             ]
         )
         mock_client.close = AsyncMock()
@@ -231,11 +241,13 @@ class TestLLMAnalysisAgent:
         """Test agent calculates correct statistics."""
         mock_client = MagicMock()
         mock_client.chat_completion = AsyncMock(
-            return_value=json.dumps({
-                "issues": [],
-                "overall_quality": "good",
-                "confidence": 0.9,
-            })
+            return_value=json.dumps(
+                {
+                    "issues": [],
+                    "overall_quality": "good",
+                    "confidence": 0.9,
+                }
+            )
         )
         mock_client.close = AsyncMock()
         mock_get_client.return_value = mock_client
@@ -274,15 +286,19 @@ class TestLLMAnalysisAgent:
         assert result.metadata["stage"] == "input_validation"
 
     @patch("app.agents.llm_analysis.get_llm_client")
-    async def test_metrics_tracking(self, mock_get_client, sample_test_code: str) -> None:
+    async def test_metrics_tracking(
+        self, mock_get_client, sample_test_code: str
+    ) -> None:
         """Test agent tracks execution metrics."""
         mock_client = MagicMock()
         mock_client.chat_completion = AsyncMock(
-            return_value=json.dumps({
-                "issues": [],
-                "overall_quality": "good",
-                "confidence": 0.9,
-            })
+            return_value=json.dumps(
+                {
+                    "issues": [],
+                    "overall_quality": "good",
+                    "confidence": 0.9,
+                }
+            )
         )
         mock_client.close = AsyncMock()
         mock_get_client.return_value = mock_client

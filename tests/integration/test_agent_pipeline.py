@@ -24,9 +24,7 @@ from app.api.v1.schemas import FileInput
 class TestAgentPipeline:
     """Integration tests for complete agent pipeline."""
 
-    async def test_rules_only_pipeline(
-        self, redundant_assertion_code: str
-    ) -> None:
+    async def test_rules_only_pipeline(self, redundant_assertion_code: str) -> None:
         """Test complete pipeline in rules-only mode."""
         orchestrator = AgentOrchestrator(name="test_pipeline")
 
@@ -40,9 +38,7 @@ class TestAgentPipeline:
         # Create context
         context = AgentContext(
             request_id="test-123",
-            files=[
-                FileInput(path="test.py", content=redundant_assertion_code)
-            ],
+            files=[FileInput(path="test.py", content=redundant_assertion_code)],
             mode="rules-only",
         )
 
@@ -82,9 +78,7 @@ class TestAgentPipeline:
         # Create context
         context = AgentContext(
             request_id="test-123",
-            files=[
-                FileInput(path="test.py", content=sample_test_code)
-            ],
+            files=[FileInput(path="test.py", content=sample_test_code)],
             mode="llm-only",
         )
 
@@ -118,22 +112,20 @@ class TestAgentPipeline:
         orchestrator.add_sequential_agent(ParsingAgent(name="parser"))
 
         # Parallel analysis
-        orchestrator.add_parallel_agent_group([
-            RuleAnalysisAgent(name="rules"),
-            LLMAnalysisAgent(name="llm"),
-        ])
+        orchestrator.add_parallel_agent_group(
+            [
+                RuleAnalysisAgent(name="rules"),
+                LLMAnalysisAgent(name="llm"),
+            ]
+        )
 
         # Synthesis (as a parallel group of one to run after the analysis group)
-        orchestrator.add_parallel_agent_group([
-            SynthesisAgent(name="synthesis")
-        ])
+        orchestrator.add_parallel_agent_group([SynthesisAgent(name="synthesis")])
 
         # Create context
         context = AgentContext(
             request_id="test-123",
-            files=[
-                FileInput(path="test.py", content=redundant_assertion_code)
-            ],
+            files=[FileInput(path="test.py", content=redundant_assertion_code)],
             mode="hybrid",
         )
 
@@ -179,9 +171,7 @@ class TestAgentPipeline:
         assert len(result_context.parsed_files) == 2
         assert len(result_context.merged_issues) > 0
 
-    async def test_pipeline_with_syntax_errors(
-        self, syntax_error_code: str
-    ) -> None:
+    async def test_pipeline_with_syntax_errors(self, syntax_error_code: str) -> None:
         """Test pipeline handles syntax errors gracefully."""
         orchestrator = AgentOrchestrator(name="test_pipeline")
 
@@ -195,9 +185,7 @@ class TestAgentPipeline:
         # Create context
         context = AgentContext(
             request_id="test-123",
-            files=[
-                FileInput(path="bad.py", content=syntax_error_code)
-            ],
+            files=[FileInput(path="bad.py", content=syntax_error_code)],
             mode="rules-only",
         )
 
@@ -219,9 +207,7 @@ class TestAgentPipeline:
         # Create context with invalid mode
         context = AgentContext(
             request_id="test-123",
-            files=[
-                FileInput(path="test.py", content="test")
-            ],
+            files=[FileInput(path="test.py", content="test")],
             mode="invalid-mode",
         )
 
@@ -233,9 +219,7 @@ class TestAgentPipeline:
         assert "input" in result_context.agent_results
         assert not result_context.agent_results["input"].success
 
-    async def test_pipeline_metrics(
-        self, sample_test_code: str
-    ) -> None:
+    async def test_pipeline_metrics(self, sample_test_code: str) -> None:
         """Test pipeline collects metrics from all agents."""
         orchestrator = AgentOrchestrator(name="test_pipeline")
 
@@ -249,9 +233,7 @@ class TestAgentPipeline:
         # Create context
         context = AgentContext(
             request_id="test-123",
-            files=[
-                FileInput(path="test.py", content=sample_test_code)
-            ],
+            files=[FileInput(path="test.py", content=sample_test_code)],
             mode="rules-only",
         )
 
@@ -272,9 +254,7 @@ class TestAgentPipeline:
             assert "execution_time_ms" in agent_metrics
             assert agent_metrics["execution_time_ms"] >= 0
 
-    async def test_pipeline_summary(
-        self, sample_test_code: str
-    ) -> None:
+    async def test_pipeline_summary(self, sample_test_code: str) -> None:
         """Test pipeline generates execution summary."""
         orchestrator = AgentOrchestrator(name="test_pipeline")
 
@@ -288,9 +268,7 @@ class TestAgentPipeline:
         # Create context
         context = AgentContext(
             request_id="test-123",
-            files=[
-                FileInput(path="test.py", content=sample_test_code)
-            ],
+            files=[FileInput(path="test.py", content=sample_test_code)],
             mode="rules-only",
         )
 

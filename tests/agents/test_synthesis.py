@@ -27,9 +27,7 @@ class TestSynthesisAgent:
             type=issue_type,
             message=f"Test issue at line {line}",
             detected_by=detected_by,
-            suggestion=IssueSuggestion(
-                action="remove", explanation="Test suggestion"
-            ),
+            suggestion=IssueSuggestion(action="remove", explanation="Test suggestion"),
         )
 
     async def test_merge_rules_only_mode(self) -> None:
@@ -43,8 +41,12 @@ class TestSynthesisAgent:
 
         # Add rule issues
         context.rule_issues = [
-            self.create_sample_issue("test.py", 10, "redundant-assertion", "warning", "rule_engine"),
-            self.create_sample_issue("test.py", 20, "missing-assertion", "error", "rule_engine"),
+            self.create_sample_issue(
+                "test.py", 10, "redundant-assertion", "warning", "rule_engine"
+            ),
+            self.create_sample_issue(
+                "test.py", 20, "missing-assertion", "error", "rule_engine"
+            ),
         ]
 
         result = await agent.run(context)
@@ -89,7 +91,9 @@ class TestSynthesisAgent:
 
         # Add both rule and LLM issues
         context.rule_issues = [
-            self.create_sample_issue("test.py", 10, "redundant-assertion", "warning", "rule_engine"),
+            self.create_sample_issue(
+                "test.py", 10, "redundant-assertion", "warning", "rule_engine"
+            ),
         ]
         context.llm_issues = [
             self.create_sample_issue("test.py", 20, "weak-assertion", "warning", "llm"),
@@ -114,10 +118,14 @@ class TestSynthesisAgent:
 
         # Add duplicate issues (same file, line, type)
         context.rule_issues = [
-            self.create_sample_issue("test.py", 10, "redundant-assertion", "warning", "rule_engine"),
+            self.create_sample_issue(
+                "test.py", 10, "redundant-assertion", "warning", "rule_engine"
+            ),
         ]
         context.llm_issues = [
-            self.create_sample_issue("test.py", 10, "redundant-assertion", "warning", "llm"),
+            self.create_sample_issue(
+                "test.py", 10, "redundant-assertion", "warning", "llm"
+            ),
         ]
 
         result = await agent.run(context)
@@ -185,8 +193,12 @@ class TestSynthesisAgent:
         )
 
         context.rule_issues = [
-            self.create_sample_issue("test.py", 10, "redundant-assertion", "error", "rule_engine"),
-            self.create_sample_issue("test.py", 20, "missing-assertion", "warning", "rule_engine"),
+            self.create_sample_issue(
+                "test.py", 10, "redundant-assertion", "error", "rule_engine"
+            ),
+            self.create_sample_issue(
+                "test.py", 20, "missing-assertion", "warning", "rule_engine"
+            ),
         ]
         context.llm_issues = [
             self.create_sample_issue("test.py", 30, "weak-assertion", "info", "llm"),
