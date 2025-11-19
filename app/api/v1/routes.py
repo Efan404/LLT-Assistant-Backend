@@ -19,9 +19,8 @@ from app.agents.rule_analysis import RuleAnalysisAgent
 from app.agents.strategy_planning import StrategyPlanningAgent
 from app.agents.synthesis import SynthesisAgent
 from app.analyzers.rule_engine import RuleEngine
-from app.api.v1.schemas import AnalyzeRequest, AnalyzeResponse, AnalysisMetrics
+from app.api.v1.schemas import AnalysisMetrics, AnalyzeRequest, AnalyzeResponse
 from app.core.analyzer import TestAnalyzer
-from app.core.constants import MAX_FILES_PER_REQUEST
 from app.core.llm_analyzer import LLMAnalyzer
 from app.core.llm_client import create_llm_client
 
@@ -75,15 +74,15 @@ def create_analysis_orchestrator() -> AgentOrchestrator:
     orchestrator.add_sequential_agent(ParsingAgent(name="parser"))
 
     # Parallel analysis
-    orchestrator.add_parallel_agent_group([
-        RuleAnalysisAgent(name="rules"),
-        LLMAnalysisAgent(name="llm"),
-    ])
+    orchestrator.add_parallel_agent_group(
+        [
+            RuleAnalysisAgent(name="rules"),
+            LLMAnalysisAgent(name="llm"),
+        ]
+    )
 
     # Post-processing (as a parallel group of one to run after analysis)
-    orchestrator.add_parallel_agent_group([
-        SynthesisAgent(name="synthesis")
-    ])
+    orchestrator.add_parallel_agent_group([SynthesisAgent(name="synthesis")])
 
     return orchestrator
 

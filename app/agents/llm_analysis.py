@@ -6,7 +6,6 @@ to perform deep analysis of test code, detecting issues that require
 semantic understanding.
 """
 
-import asyncio
 import logging
 from typing import List
 
@@ -102,9 +101,9 @@ class LLMAnalysisAgent(BaseAgent):
                         parsed_file, context
                     )
 
-                    tests_skipped += self._count_total_tests(
-                        parsed_file
-                    ) - len(functions_to_analyze)
+                    tests_skipped += self._count_total_tests(parsed_file) - len(
+                        functions_to_analyze
+                    )
 
                     # Analyze selected functions
                     for test_func in functions_to_analyze:

@@ -6,7 +6,7 @@ by different analysis methods (rules and LLM) into a unified result set.
 """
 
 import logging
-from typing import List, Set, Tuple
+from typing import List, Tuple
 
 from app.agents.base import BaseAgent
 from app.agents.context import AgentContext, AgentResult
@@ -97,7 +97,9 @@ class SynthesisAgent(BaseAgent):
             issue_counts_by_source[issue.detected_by] = (
                 issue_counts_by_source.get(issue.detected_by, 0) + 1
             )
-            issue_counts_by_type[issue.type] = issue_counts_by_type.get(issue.type, 0) + 1
+            issue_counts_by_type[issue.type] = (
+                issue_counts_by_type.get(issue.type, 0) + 1
+            )
 
         data = {
             "total_issues": len(all_issues),
