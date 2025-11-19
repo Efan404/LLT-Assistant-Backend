@@ -5,9 +5,7 @@ Tests cover the main analysis orchestration, file parsing,
 rule/LLM integration, and metric calculation.
 """
 
-import asyncio
-from typing import List
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -224,11 +222,16 @@ class TestTestAnalyzer:
         with patch.object(
             test_analyzer, "_parse_files_parallel", return_value=[sample_parsed_file]
         ):
-            with patch.object(
-                test_analyzer,
-                "_identify_uncertain_cases",
-                return_value=[sample_parsed_file.test_functions[0]],
-            ):
+            # Patch UncertainCaseDetector since it's now in a separate class
+            with patch(
+                "app.core.strategies.UncertainCaseDetector"
+            ) as mock_detector_class:
+                mock_detector = Mock()
+                mock_detector.identify_uncertain_cases.return_value = [
+                    sample_parsed_file.test_functions[0]
+                ]
+                mock_detector_class.return_value = mock_detector
+
                 response = await test_analyzer.analyze_files(
                     files=[sample_file_input], mode="hybrid"
                 )
@@ -276,262 +279,6 @@ class TestTestAnalyzer:
             assert len(results) == 1
             assert results[0].has_syntax_errors
             assert "invalid syntax" in results[0].syntax_error_message
-
-    def test_identify_uncertain_cases_similar_names(self, test_analyzer):
-        """Test identification of similar function names."""
-        func1 = TestFunctionInfo(
-            name="test_user_creation",
-            line_number=1,
-            decorators=[],
-            parameters=[],
-            assertions=[],
-            has_docstring=False,
-            body_lines=(1, 1),
-            source_code="def test_user_creation(): pass",
-        )
-        func2 = TestFunctionInfo(
-            name="test_user_deletion",
-            line_number=5,
-            decorators=[],
-            parameters=[],
-            assertions=[],
-            has_docstring=False,
-            body_lines=(5, 5),
-            source_code="def test_user_deletion(): pass",
-        )
-
-        parsed_file = ParsedTestFile(
-            file_path="test_users.py",
-            imports=[],
-            fixtures=[],
-            test_functions=[func1, func2],
-            test_classes=[],
-            has_syntax_errors=False,
-            syntax_error_message=None,
-        )
-
-        uncertain = test_analyzer._identify_uncertain_cases(parsed_file)
-
-        # Both functions should be identified as similar
-        assert len(uncertain) >= 2
-        assert func1 in uncertain
-        assert func2 in uncertain
-
-    def test_identify_uncertain_cases_complex_assertions(self, test_analyzer):
-        """Test identification of functions with complex assertions."""
-        func = TestFunctionInfo(
-            name="test_complex",
-            line_number=1,
-            decorators=[],
-            parameters=[],
-            assertions=[
-                AssertionInfo(
-                    line_number=2,
-                    column=4,
-                    assertion_type="equality",
-                    operands=["a", "1"],
-                    is_trivial=False,
-                    source_code="assert a == 1",
-                ),
-                AssertionInfo(
-                    line_number=3,
-                    column=4,
-                    assertion_type="equality",
-                    operands=["b", "2"],
-                    is_trivial=False,
-                    source_code="assert b == 2",
-                ),
-                AssertionInfo(
-                    line_number=4,
-                    column=4,
-                    assertion_type="equality",
-                    operands=["c", "3"],
-                    is_trivial=False,
-                    source_code="assert c == 3",
-                ),
-                AssertionInfo(
-                    line_number=5,
-                    column=4,
-                    assertion_type="equality",
-                    operands=["d", "4"],
-                    is_trivial=False,
-                    source_code="assert d == 4",
-                ),
-            ],
-            has_docstring=False,
-            body_lines=(1, 5),
-            source_code="def test_complex(): pass",
-        )
-
-        parsed_file = ParsedTestFile(
-            file_path="test_example.py",
-            imports=[],
-            fixtures=[],
-            test_functions=[func],
-            test_classes=[],
-            has_syntax_errors=False,
-            syntax_error_message=None,
-        )
-
-        uncertain = test_analyzer._identify_uncertain_cases(parsed_file)
-
-        # Function with many assertions should be identified
-        assert func in uncertain
-
-    def test_identify_uncertain_cases_unusual_patterns(self, test_analyzer):
-        """Test identification of unusual patterns like time.sleep."""
-        func = TestFunctionInfo(
-            name="test_with_sleep",
-            line_number=1,
-            decorators=[],
-            parameters=[],
-            assertions=[],
-            has_docstring=False,
-            body_lines=(1, 3),
-            source_code="def test_with_sleep():\n    time.sleep(1)\n    assert True",
-        )
-
-        parsed_file = ParsedTestFile(
-            file_path="test_example.py",
-            imports=[],
-            fixtures=[],
-            test_functions=[func],
-            test_classes=[],
-            has_syntax_errors=False,
-            syntax_error_message=None,
-        )
-
-        uncertain = test_analyzer._identify_uncertain_cases(parsed_file)
-
-        # Function with timing dependency should be identified
-        assert func in uncertain
-
-    def test_merge_issues_rules_only(self, test_analyzer):
-        """Test issue merging in rules-only mode."""
-        rule_issues = [
-            Issue(
-                file="test.py",
-                line=1,
-                column=0,
-                severity="warning",
-                type="issue1",
-                message="Rule issue",
-                detected_by="rule_engine",
-                suggestion=None,
-            )
-        ]
-        llm_issues = [
-            Issue(
-                file="test.py",
-                line=2,
-                column=0,
-                severity="info",
-                type="issue2",
-                message="LLM issue",
-                detected_by="llm",
-                suggestion=None,
-            )
-        ]
-
-        merged = test_analyzer._merge_issues(rule_issues, llm_issues, "rules-only")
-
-        assert len(merged) == 1
-        assert merged[0].detected_by == "rule_engine"
-
-    def test_merge_issues_llm_only(self, test_analyzer):
-        """Test issue merging in llm-only mode."""
-        rule_issues = [
-            Issue(
-                file="test.py",
-                line=1,
-                column=0,
-                severity="warning",
-                type="issue1",
-                message="Rule issue",
-                detected_by="rule_engine",
-                suggestion=None,
-            )
-        ]
-        llm_issues = [
-            Issue(
-                file="test.py",
-                line=2,
-                column=0,
-                severity="info",
-                type="issue2",
-                message="LLM issue",
-                detected_by="llm",
-                suggestion=None,
-            )
-        ]
-
-        merged = test_analyzer._merge_issues(rule_issues, llm_issues, "llm-only")
-
-        assert len(merged) == 1
-        assert merged[0].detected_by == "llm"
-
-    def test_merge_issues_hybrid_deduplicates(self, test_analyzer):
-        """Test that hybrid mode deduplicates similar issues."""
-        rule_issue = Issue(
-            file="test.py",
-            line=5,
-            column=4,
-            severity="warning",
-            type="redundant-assertion",
-            message="Redundant assertion",
-            detected_by="rule_engine",
-            suggestion=None,
-        )
-        llm_issue = Issue(
-            file="test.py",
-            line=5,
-            column=4,
-            severity="warning",
-            type="redundant-assertion",
-            message="Duplicate assertion found",
-            detected_by="llm",
-            suggestion=None,
-        )
-
-        merged = test_analyzer._merge_issues([rule_issue], [llm_issue], "hybrid")
-
-        # Should only have one issue (rule engine takes precedence)
-        assert len(merged) == 1
-        assert merged[0].detected_by == "rule_engine"
-
-    def test_calculate_metrics(self, test_analyzer):
-        """Test metrics calculation."""
-        import time
-
-        parsed_files = [
-            ParsedTestFile(
-                file_path="test1.py",
-                imports=[],
-                fixtures=[],
-                test_functions=[Mock(), Mock()],  # 2 tests
-                test_classes=[],
-                has_syntax_errors=False,
-                syntax_error_message=None,
-            ),
-            ParsedTestFile(
-                file_path="test2.py",
-                imports=[],
-                fixtures=[],
-                test_functions=[Mock()],  # 1 test
-                test_classes=[],
-                has_syntax_errors=False,
-                syntax_error_message=None,
-            ),
-        ]
-
-        issues = [Mock(), Mock(), Mock()]  # 3 issues
-        start_time = time.time()
-
-        metrics = test_analyzer._calculate_metrics(parsed_files, issues, start_time)
-
-        assert metrics.total_tests == 3
-        assert metrics.issues_count == 3
-        assert metrics.analysis_time_ms >= 0
 
     @pytest.mark.asyncio
     async def test_close_calls_llm_analyzer_close(
