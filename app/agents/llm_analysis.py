@@ -82,59 +82,54 @@ class LLMAnalysisAgent(BaseAgent):
         tests_analyzed = 0
         tests_skipped = 0
 
-        try:
-            # Analyze each parsed file
-            for parsed_file in context.parsed_files:
-                try:
-                    # Skip files with syntax errors
-                    if parsed_file.has_syntax_errors:
-                        warning_msg = (
-                            f"Skipping LLM analysis for {parsed_file.file_path} "
-                            f"due to syntax errors"
-                        )
-                        self.logger.warning(warning_msg)
-                        warnings.append(warning_msg)
-                        continue
+        # Analyze each parsed file
+        for parsed_file in context.parsed_files:
+            try:
+                # Skip files with syntax errors
+                if parsed_file.has_syntax_errors:
+                    warning_msg = (
+                        f"Skipping LLM analysis for {parsed_file.file_path} "
+                        f"due to syntax errors"
+                    )
+                    self.logger.warning(warning_msg)
+                    warnings.append(warning_msg)
+                    continue
 
-                    # Determine which test functions to analyze
-                    functions_to_analyze = self._select_functions_for_analysis(
-                        parsed_file, context
+                # Determine which test functions to analyze
+                functions_to_analyze = self._select_functions_for_analysis(
+                    parsed_file, context
+                )
+
+                tests_skipped += self._count_total_tests(parsed_file) - len(
+                    functions_to_analyze
+                )
+
+                # Analyze selected functions
+                for test_func in functions_to_analyze:
+                    # Analyze assertion quality
+                    assertion_issues = await llm_analyzer.analyze_assertion_quality(
+                        test_func, parsed_file
+                    )
+                    all_issues.extend(assertion_issues)
+
+                    # Analyze test smells
+                    smell_issues = await llm_analyzer.analyze_test_smells(
+                        test_func, parsed_file
+                    )
+                    all_issues.extend(smell_issues)
+
+                    tests_analyzed += 1
+
+                    self.logger.debug(
+                        f"LLM analyzed {test_func.name}: "
+                        f"{len(assertion_issues)} assertion issues, "
+                        f"{len(smell_issues)} smell issues"
                     )
 
-                    tests_skipped += self._count_total_tests(parsed_file) - len(
-                        functions_to_analyze
-                    )
-
-                    # Analyze selected functions
-                    for test_func in functions_to_analyze:
-                        # Analyze assertion quality
-                        assertion_issues = await llm_analyzer.analyze_assertion_quality(
-                            test_func, parsed_file
-                        )
-                        all_issues.extend(assertion_issues)
-
-                        # Analyze test smells
-                        smell_issues = await llm_analyzer.analyze_test_smells(
-                            test_func, parsed_file
-                        )
-                        all_issues.extend(smell_issues)
-
-                        tests_analyzed += 1
-
-                        self.logger.debug(
-                            f"LLM analyzed {test_func.name}: "
-                            f"{len(assertion_issues)} assertion issues, "
-                            f"{len(smell_issues)} smell issues"
-                        )
-
-                except Exception as e:
-                    error_msg = f"Failed to analyze {parsed_file.file_path}: {str(e)}"
-                    self.logger.error(error_msg)
-                    errors.append(error_msg)
-
-        finally:
-            # Close LLM client
-            await llm_client.close()
+            except Exception as e:
+                error_msg = f"Failed to analyze {parsed_file.file_path}: {str(e)}"
+                self.logger.error(error_msg)
+                errors.append(error_msg)
 
         # Store results in context
         context.llm_issues = all_issues

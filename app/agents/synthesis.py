@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 # Severity ordering for sorting
 SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
+# Fallback order for unknown severity levels (sorted last)
+UNKNOWN_SEVERITY_ORDER = 99
 
 
 class SynthesisAgent(BaseAgent):
@@ -63,9 +65,16 @@ class SynthesisAgent(BaseAgent):
         llm_duplicates = 0
         if context.mode in {"llm-only", "hybrid"}:
             if hasattr(context, "llm_issues") and context.llm_issues:
+                # Build set of existing issue signatures for O(1) lookup
+                existing_signatures = {
+                    self._get_issue_signature(issue) for issue in all_issues
+                }
+
                 for llm_issue in context.llm_issues:
-                    if not self._is_duplicate(llm_issue, all_issues):
+                    issue_signature = self._get_issue_signature(llm_issue)
+                    if issue_signature not in existing_signatures:
                         all_issues.append(llm_issue)
+                        existing_signatures.add(issue_signature)
                         llm_issue_count += 1
                     else:
                         llm_duplicates += 1
@@ -180,7 +189,7 @@ class SynthesisAgent(BaseAgent):
         return sorted(
             issues,
             key=lambda issue: (
-                SEVERITY_ORDER.get(issue.severity, 99),
+                SEVERITY_ORDER.get(issue.severity, UNKNOWN_SEVERITY_ORDER),
                 issue.file,
                 issue.line,
             ),

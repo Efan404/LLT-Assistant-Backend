@@ -8,7 +8,7 @@ import pytest
 
 from app.agents.context import AgentContext
 from app.agents.synthesis import SynthesisAgent
-from app.api.v1.schemas import FileInput, Issue, IssueSuggestion
+from app.api.v1.schemas import Issue, IssueSuggestion
 
 
 @pytest.mark.asyncio

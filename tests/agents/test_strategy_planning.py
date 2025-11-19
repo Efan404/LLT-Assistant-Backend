@@ -159,6 +159,9 @@ class TestStrategyPlanningAgent:
 
         result = await agent.run(context)
 
+        # Verify execution succeeded
+        assert result.success is True
+
         # Should have all required fields
         assert "run_rules" in context.execution_plan
         assert "run_llm" in context.execution_plan

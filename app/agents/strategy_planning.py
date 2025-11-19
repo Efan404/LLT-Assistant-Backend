@@ -6,7 +6,7 @@ characteristics and determines the best execution strategy for analysis.
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from app.agents.base import BaseAgent
 from app.agents.context import AgentContext, AgentResult
@@ -21,10 +21,12 @@ COMPLEX_TEST_THRESHOLD = 30  # Number of test functions
 # Cost estimates (in arbitrary units, can be tuned)
 RULE_COST_PER_FILE = 10
 LLM_COST_PER_TEST = 50
+COST_SCALE_FACTOR = 1000.0  # Scale factor to convert cost to reasonable units
 
 # Time estimates (in milliseconds)
 RULE_TIME_PER_FILE_MS = 50
 LLM_TIME_PER_TEST_MS = 500
+BASELINE_OVERHEAD_MS = 500  # Overhead for parsing and synthesis
 
 
 class StrategyPlanningAgent(BaseAgent):
@@ -126,7 +128,7 @@ class StrategyPlanningAgent(BaseAgent):
 
     def _determine_methods(
         self, context: AgentContext, file_stats: Dict[str, Any]
-    ) -> tuple[bool, bool]:
+    ) -> Tuple[bool, bool]:
         """
         Determine which analysis methods to run.
 
@@ -178,7 +180,7 @@ class StrategyPlanningAgent(BaseAgent):
             time_ms += file_stats["estimated_test_count"] * LLM_TIME_PER_TEST_MS
 
         # Add baseline overhead for parsing and synthesis
-        time_ms += 500
+        time_ms += BASELINE_OVERHEAD_MS
 
         return int(time_ms)
 
@@ -204,7 +206,7 @@ class StrategyPlanningAgent(BaseAgent):
         if run_llm:
             cost += file_stats["estimated_test_count"] * LLM_COST_PER_TEST
 
-        return cost / 1000.0  # Convert to reasonable scale
+        return cost / COST_SCALE_FACTOR
 
     async def validate_input(self, context: AgentContext) -> List[str]:
         """
