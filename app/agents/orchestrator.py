@@ -65,9 +65,7 @@ class AgentOrchestrator:
         self.logger.debug(f"Added sequential agent: {agent.name}")
         return self
 
-    def add_parallel_agent_group(
-        self, agents: List[BaseAgent]
-    ) -> "AgentOrchestrator":
+    def add_parallel_agent_group(self, agents: List[BaseAgent]) -> "AgentOrchestrator":
         """
         Add a group of agents to be executed in parallel.
 
@@ -239,9 +237,7 @@ class AgentOrchestrator:
         total_execution_time = sum(
             m["execution_time_ms"] for m in agent_metrics.values()
         )
-        successful_agents = sum(
-            1 for m in agent_metrics.values() if m["success"]
-        )
+        successful_agents = sum(1 for m in agent_metrics.values() if m["success"])
         total_agents = len(agent_metrics)
 
         return {

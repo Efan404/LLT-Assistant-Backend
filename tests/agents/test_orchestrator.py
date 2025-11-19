@@ -60,7 +60,11 @@ class CriticalFailureAgent(BaseAgent):
             data=None,
             errors=["Critical failure occurred"],
             warnings=[],
-            metadata={"agent": self.name, "stage": "input_validation", "critical": True},
+            metadata={
+                "agent": self.name,
+                "stage": "input_validation",
+                "critical": True,
+            },
             execution_time_ms=0,
         )
 

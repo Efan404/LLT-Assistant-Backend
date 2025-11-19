@@ -10,7 +10,11 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from app.agents.llm.settings import LLMSettings, get_llm_settings, get_optional_llm_settings
+from app.agents.llm.settings import (
+    LLMSettings,
+    get_llm_settings,
+    get_optional_llm_settings,
+)
 
 
 class TestLLMSettings:
