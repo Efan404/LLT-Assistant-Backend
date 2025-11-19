@@ -5,7 +5,6 @@ This module defines the configuration for LLM clients, loading
 settings from environment variables with secure defaults.
 """
 
-import os
 from functools import lru_cache
 from typing import Optional
 

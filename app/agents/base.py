@@ -127,7 +127,9 @@ class BaseAgent(ABC):
             # Handle unexpected exceptions
             execution_time_ms = int((time.time() - start_time) * 1000)
             self.logger.exception(f"Agent {self.name} raised unexpected exception: {e}")
-            self.metrics["errors"] += 1
+
+            # Update metrics to include this failed execution
+            self._update_metrics(execution_time_ms, success=False)
 
             result = AgentResult(
                 success=False,
@@ -221,7 +223,7 @@ class BaseAgent(ABC):
         """
         total_executions = self.metrics["executions"]
         avg_time_ms = (
-            self.metrics["total_time_ms"] // total_executions
+            round(self.metrics["total_time_ms"] / total_executions)
             if total_executions > 0
             else 0
         )

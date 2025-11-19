@@ -6,8 +6,6 @@ Tests the context and result data structures used for agent communication.
 
 import time
 
-import pytest
-
 from app.agents.context import AgentContext, AgentResult
 from app.api.v1.schemas import FileInput
 

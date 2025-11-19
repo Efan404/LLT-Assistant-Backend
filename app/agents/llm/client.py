@@ -8,9 +8,10 @@ utilities for chat completions.
 
 import logging
 from functools import lru_cache
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from app.agents.llm.settings import LLMSettings, get_llm_settings
@@ -61,8 +62,8 @@ def create_llm_client(settings: Optional[LLMSettings] = None) -> BaseChatModel:
         # Create ChatOpenAI client configured for DeepSeek
         client = ChatOpenAI(
             model=settings.deepseek_model,
-            openai_api_base=settings.deepseek_base_url,
-            openai_api_key=settings.deepseek_api_key,
+            base_url=settings.deepseek_base_url,
+            api_key=settings.deepseek_api_key,
             temperature=settings.deepseek_temperature,
             max_tokens=settings.deepseek_max_tokens,
             timeout=settings.deepseek_timeout,
@@ -140,8 +141,6 @@ async def chat_completion(
 
     try:
         # Convert messages to LangChain format
-        from langchain_core.messages import HumanMessage, SystemMessage
-
         langchain_messages = []
         for msg in messages:
             role = msg.get("role", "user")
@@ -149,7 +148,9 @@ async def chat_completion(
 
             if role == "system":
                 langchain_messages.append(SystemMessage(content=content))
-            else:  # user, assistant
+            elif role == "assistant":
+                langchain_messages.append(AIMessage(content=content))
+            else:  # user or any other role defaults to HumanMessage
                 langchain_messages.append(HumanMessage(content=content))
 
         # Invoke the model
