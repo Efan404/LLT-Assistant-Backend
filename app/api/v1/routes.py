@@ -5,12 +5,21 @@ dependency injection to eliminate global state.
 """
 
 import logging
+import uuid
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.agents.context import AgentContext
+from app.agents.input_processing import InputProcessingAgent
+from app.agents.llm_analysis import LLMAnalysisAgent
+from app.agents.orchestrator import AgentOrchestrator
+from app.agents.parsing import ParsingAgent
+from app.agents.rule_analysis import RuleAnalysisAgent
+from app.agents.strategy_planning import StrategyPlanningAgent
+from app.agents.synthesis import SynthesisAgent
 from app.analyzers.rule_engine import RuleEngine
-from app.api.v1.schemas import AnalyzeRequest, AnalyzeResponse
+from app.api.v1.schemas import AnalyzeRequest, AnalyzeResponse, AnalysisMetrics
 from app.core.analyzer import TestAnalyzer
 from app.core.constants import MAX_FILES_PER_REQUEST
 from app.core.llm_analyzer import LLMAnalyzer
@@ -22,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 def get_analyzer() -> TestAnalyzer:
     """
-    Dependency injection factory for TestAnalyzer.
+    Dependency injection factory for TestAnalyzer (legacy).
 
     This function follows the Dependency Inversion Principle by creating
     instances with proper dependency injection, eliminating global state.
@@ -48,12 +57,41 @@ def get_analyzer() -> TestAnalyzer:
         )
 
 
-@router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_tests(
-    request: AnalyzeRequest, test_analyzer: TestAnalyzer = Depends(get_analyzer)
-) -> AnalyzeResponse:
+def create_analysis_orchestrator() -> AgentOrchestrator:
     """
-    Analyze pytest test files for quality issues.
+    Create the agent orchestrator for test analysis.
+
+    This factory function builds the complete analysis pipeline using
+    the agent framework.
+
+    Returns:
+        Configured AgentOrchestrator instance
+    """
+    orchestrator = AgentOrchestrator(name="test_analysis_pipeline")
+
+    # Sequential pre-processing
+    orchestrator.add_sequential_agent(InputProcessingAgent(name="input"))
+    orchestrator.add_sequential_agent(StrategyPlanningAgent(name="strategy"))
+    orchestrator.add_sequential_agent(ParsingAgent(name="parser"))
+
+    # Parallel analysis
+    orchestrator.add_parallel_agent_group([
+        RuleAnalysisAgent(name="rules"),
+        LLMAnalysisAgent(name="llm"),
+    ])
+
+    # Post-processing (as a parallel group of one to run after analysis)
+    orchestrator.add_parallel_agent_group([
+        SynthesisAgent(name="synthesis")
+    ])
+
+    return orchestrator
+
+
+@router.post("/analyze", response_model=AnalyzeResponse)
+async def analyze_tests(request: AnalyzeRequest) -> AnalyzeResponse:
+    """
+    Analyze pytest test files for quality issues using agent framework.
 
     This endpoint accepts test file content and returns detected issues
     with fix suggestions. Analysis can use rule engine only, LLM only,
@@ -61,7 +99,6 @@ async def analyze_tests(
 
     Args:
         request: Analysis request containing test files and configuration
-        test_analyzer: Injected TestAnalyzer instance
 
     Returns:
         Analysis response with detected issues and metrics
@@ -70,24 +107,46 @@ async def analyze_tests(
         HTTPException: If analysis fails or request is invalid
     """
     try:
-        # Validate request
-        if not request.files:
-            raise HTTPException(
-                status_code=400, detail="No files provided for analysis"
-            )
+        # Create unique analysis ID
+        analysis_id = str(uuid.uuid4())
 
-        if len(request.files) > MAX_FILES_PER_REQUEST:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Too many files (max {MAX_FILES_PER_REQUEST})",
-            )
-
-        # Run analysis
-        result = await test_analyzer.analyze_files(
-            files=request.files, mode=request.mode, config=request.config
+        # Create agent context
+        context = AgentContext(
+            request_id=analysis_id,
+            files=request.files,
+            mode=request.mode,
+            config=request.config,
         )
 
-        return result
+        # Create and execute orchestrator
+        orchestrator = create_analysis_orchestrator()
+        result_context = await orchestrator.execute(context)
+
+        # Check for errors
+        if result_context.has_errors():
+            errors = result_context.get_all_errors()
+            logger.error(f"Analysis failed with errors: {errors}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Analysis failed: {'; '.join(errors[:3])}",
+            )
+
+        # Count total tests
+        total_tests = sum(
+            len(pf.test_functions) + sum(len(tc.methods) for tc in pf.test_classes)
+            for pf in result_context.parsed_files
+        )
+
+        # Build response
+        return AnalyzeResponse(
+            analysis_id=analysis_id,
+            issues=result_context.merged_issues,
+            metrics=AnalysisMetrics(
+                total_tests=total_tests,
+                issues_count=len(result_context.merged_issues),
+                analysis_time_ms=result_context.get_total_execution_time_ms(),
+            ),
+        )
 
     except HTTPException:
         # Re-raise HTTP exceptions as-is
