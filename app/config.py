@@ -20,15 +20,22 @@ class Settings(BaseSettings):
 
     # LLM Configuration
     llm_api_key: str = Field(
-        default="test-key-for-development", description="LLM API key"
+        validation_alias="LLM_API_KEY",
+        description="LLM API key (from LLM_API_KEY env var)",
     )
     llm_base_url: str = Field(
-        default="https://api.qnaigc.com/v1", description="LLM API base URL"
+        default="https://api.deepseek.com",
+        validation_alias="LLM_BASE_URL",
+        description="LLM API base URL (from LLM_BASE_URL env var)",
     )
     llm_model: str = Field(
-        default="deepseek/deepseek-v3.2-exp", description="LLM model name"
+        default="deepseek-chat", description="LLM model name"
     )
-    llm_timeout: float = Field(default=30.0, description="LLM API timeout in seconds")
+    llm_timeout: float = Field(
+        default=120.0,
+        validation_alias="LLM_TIMEOUT",
+        description="LLM API timeout in seconds"
+    )
     llm_max_retries: int = Field(default=3, description="Maximum LLM API retries")
 
     # Analysis Configuration
@@ -49,11 +56,18 @@ class Settings(BaseSettings):
         description="Allowed CORS origins (use specific domains in production)",
     )
 
+    # Task / Redis Configuration
+    redis_url: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis connection URL for task management",
+    )
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
         "extra": "ignore",
+        "populate_by_name": True,
     }
 
 

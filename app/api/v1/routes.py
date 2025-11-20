@@ -4,17 +4,26 @@ This module defines the REST API endpoints using FastAPI with proper
 dependency injection to eliminate global state.
 """
 
+import asyncio
 import logging
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.analyzers.rule_engine import RuleEngine
-from app.api.v1.schemas import AnalyzeRequest, AnalyzeResponse
+from app.api.v1.schemas import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    GenerateTestsRequest,
+    GenerateTestsResponse,
+    TaskError,
+    TaskStatus as TaskStatusSchema,
+)
 from app.core.analyzer import TestAnalyzer
 from app.core.constants import MAX_FILES_PER_REQUEST
 from app.core.llm_analyzer import LLMAnalyzer
 from app.core.llm_client import create_llm_client
+from app.core.tasks import TaskStatus, create_task, execute_generate_tests_task, get_task
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -163,3 +172,79 @@ async def get_analysis_modes() -> Dict[str, Any]:
             },
         ]
     }
+
+
+@router.post(
+    "/workflows/generate-tests",
+    response_model=GenerateTestsResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def submit_generate_tests(
+    request: GenerateTestsRequest,
+) -> GenerateTestsResponse:
+    """
+    Submit a test generation request and return an async task identifier.
+    Uses asyncio.create_task to run the generation in the background.
+    """
+    try:
+        task_payload = request.model_dump()
+        task_id = await create_task(task_payload)
+
+        # Launch background task using asyncio instead of Celery
+        asyncio.create_task(execute_generate_tests_task(task_id, task_payload))
+
+        return GenerateTestsResponse(
+            task_id=task_id,
+            status=TaskStatus.PENDING.value,
+            estimated_duration_seconds=None,
+            request_id=task_id,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Failed to submit test generation task: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to submit test generation task",
+        ) from exc
+
+
+@router.get("/tasks/{task_id}", response_model=TaskStatusSchema)
+async def get_task_status(task_id: str) -> TaskStatusSchema:
+    """
+    Get task status and results.
+
+    Poll for async task status and results.
+    Used for long-running operations like test generation.
+
+    Args:
+        task_id: Task identifier (UUID)
+
+    Returns:
+        Task status information
+
+    Raises:
+        HTTPException: 404 if task not found
+    """
+    task_data = await get_task(task_id)
+    if task_data is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Convert task data to TaskStatusSchema
+    error = None
+    if task_data.get("error"):
+        error = TaskError(
+            message=task_data["error"],
+            details=None,
+        )
+
+    return TaskStatusSchema(
+        task_id=task_data["id"],
+        status=task_data["status"],
+        progress=None,  # Progress calculation can be added later
+        result=task_data.get("result"),
+        error=error,
+        created_at=task_data.get("created_at"),
+        updated_at=task_data.get("updated_at"),
+        estimated_completion=None,  # ETA calculation can be added later
+    )

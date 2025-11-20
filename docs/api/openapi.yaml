@@ -206,17 +206,20 @@ paths:
 # ============================================================================
 # FEATURE 1: Test Generation Workflow
 # ============================================================================
-  /workflows/generate-tests/scenarios:
+  /workflows/generate-tests:
     post:
-      summary: "Stage 1: Identify test scenarios"
+      summary: "Feature 1: Submit generation request"
       description: |
-        **Feature 1 - Stage 1**
+        **Feature 1**
         
-        Analyze function code and user description to identify candidate test scenarios.
-        Returns scenarios for user confirmation before code generation.
+        Submit source code plus a short natural-language description to kick off
+        the end-to-end test generation workflow. The backend performs scenario
+        discovery and code generation asynchronously. The response only contains
+        a `task_id` so the client can poll `/tasks/{task_id}` for progress and
+        retrieve the generated tests when ready.
         
-        **User Input:** ≤200 characters of natural language description
-        **Output:** Identified scenarios with confidence levels
+        **Input:** Python source code + ≤200 character description
+        **Output:** Async task metadata
       tags:
         - Feature 1 - Test Generation
       requestBody:
@@ -224,77 +227,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GenerateTestsScenariosRequest'
+              $ref: '#/components/schemas/GenerateTestsRequest'
       responses:
-        '200':
-          description: Scenarios identified
+        '202':
+          description: Generation started
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenerateTestsScenariosResponse'
+                $ref: '#/components/schemas/GenerateTestsResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '422':
           $ref: '#/components/responses/ValidationError'
-
-  /workflows/generate-tests/code:
-    post:
-      summary: "Stage 2: Generate pytest code"
-      description: |
-        **Feature 1 - Stage 2**
-        
-        Generate actual pytest code from confirmed scenarios.
-        Supports pytest framework with fixtures and parametrization.
-        
-        **Input:** Confirmed scenarios from Stage 1
-        **Output:** Ready-to-use pytest code
-      tags:
-        - Feature 1 - Test Generation
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GenerateTestsCodeRequest'
-      responses:
-        '200':
-          description: Test code generated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GenerateTestsCodeResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '409':
-          description: Stage 1/2 mismatch
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /workflows/generate-tests/supplement:
-    post:
-      summary: Supplement existing test suite
-      description: |
-        **Feature 1 - Supplement**
-        
-        Add new test cases to an existing test file.
-        Maintains consistency with existing test style.
-      tags:
-        - Feature 1 - Test Generation
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SupplementTestsRequest'
-      responses:
-        '200':
-          description: Supplementary tests generated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SupplementTestsResponse'
 
 # ============================================================================
 # FEATURE 2: Coverage Optimization Workflow
@@ -842,25 +786,6 @@ components:
         is_block_comment:
           type: boolean
 
-    IdentifiedScenario:
-      type: object
-      required:
-        - scenario
-        - confidence
-        - source
-      properties:
-        scenario:
-          type: string
-          description: Test scenario description
-        confidence:
-          type: string
-          enum: [high, medium, low]
-        source:
-          type: string
-          enum: [code_analysis, user_description, inference]
-        reason:
-          type: string
-
     TokenUsage:
       type: object
       properties:
@@ -1061,172 +986,53 @@ components:
     # ========================================================================
     # FEATURE 1: Test Generation Schemas
     # ========================================================================
-    GenerateTestsScenariosRequest:
+    GenerateTestsRequest:
       type: object
       required:
-        - function_context
+        - code_submission
         - user_description
       properties:
-        function_context:
-          $ref: '#/components/schemas/FunctionContext'
+        code_submission:
+          $ref: '#/components/schemas/CodeSubmission'
         user_description:
           type: string
           minLength: 1
           maxLength: 200
-          description: Natural language description of test requirements
+          description: Natural language description of the tests to generate
         config:
           type: object
           properties:
-            max_identified_scenarios:
-              type: integer
-              default: 5
-            max_suggested_scenarios:
-              type: integer
-              default: 3
-            auto_confirm_simple_functions:
+            auto_review_before_return:
               type: boolean
               default: true
-        client_metadata:
-          $ref: '#/components/schemas/ClientMetadata'
-
-    GenerateTestsScenariosResponse:
-      type: object
-      required:
-        - identified_scenarios
-        - suggested_additional_scenarios
-        - confirmation_question
-        - request_id
-      properties:
-        skip_confirmation:
-          type: boolean
-          description: If true, can proceed directly to Stage 2
-        proceed_to_generation:
-          type: boolean
-        identified_scenarios:
-          type: array
-          items:
-            $ref: '#/components/schemas/IdentifiedScenario'
-        suggested_additional_scenarios:
-          type: array
-          items:
-            $ref: '#/components/schemas/IdentifiedScenario'
-        confirmation_question:
-          type: string
-        reason:
-          type: string
-        token_usage:
-          $ref: '#/components/schemas/TokenUsage'
-        request_id:
-          type: string
-          description: Use this ID in Stage 2 request
-
-    GenerateTestsCodeRequest:
-      type: object
-      required:
-        - function_context
-        - confirmed_scenarios
-      properties:
-        function_context:
-          $ref: '#/components/schemas/FunctionContext'
-        confirmed_scenarios:
-          type: array
-          description: Scenarios accepted by user from Stage 1
-          items:
-            $ref: '#/components/schemas/IdentifiedScenario'
-        stage1_request_id:
-          type: string
-          description: Reference to Stage 1 for context continuity
-        user_additional_notes:
-          type: string
-        config:
-          type: object
-          properties:
-            min_test_count:
-              type: integer
-              default: 3
             max_test_count:
               type: integer
+              minimum: 1
+              maximum: 20
               default: 8
-            use_parametrize:
-              type: boolean
-              default: true
-            generate_fixtures:
-              type: boolean
-              default: true
+            preferred_style:
+              type: string
+              enum: [pytest_parametrize, pytest_plain, unittest]
         client_metadata:
           $ref: '#/components/schemas/ClientMetadata'
 
-    GenerateTestsCodeResponse:
+    GenerateTestsResponse:
       type: object
       required:
-        - test_code
-        - imports
-        - test_count
-        - request_id
+        - task_id
+        - status
       properties:
-        test_code:
+        task_id:
           type: string
-          description: Generated pytest code
-        imports:
-          type: array
-          items:
-            type: string
-        test_count:
-          type: integer
-        coverage_summary:
+          format: uuid
+          description: Async task identifier for `/tasks/{task_id}`
+        status:
           type: string
-        notes:
-          type: string
-        token_usage:
-          $ref: '#/components/schemas/TokenUsage'
+          enum: [pending, processing]
+          description: Initial task status
         request_id:
           type: string
-        related_stage1_request_id:
-          type: string
-
-    SupplementTestsRequest:
-      type: object
-      required:
-        - existing_test_code
-        - existing_scenarios
-        - new_scenario_description
-      properties:
-        existing_test_code:
-          type: string
-        existing_scenarios:
-          type: array
-          items:
-            type: string
-        function_code:
-          type: string
-          description: Optional but improves quality
-        new_scenario_description:
-          type: string
-        client_metadata:
-          $ref: '#/components/schemas/ClientMetadata'
-
-    SupplementTestsResponse:
-      type: object
-      required:
-        - success
-        - new_test_code
-        - new_test_count
-      properties:
-        success:
-          type: boolean
-        new_test_code:
-          type: string
-        new_test_count:
-          type: integer
-        coverage_summary:
-          type: string
-        suggested_insert_mode:
-          type: string
-          enum: [append, replace_class, replace_file]
-        token_usage:
-          $ref: '#/components/schemas/TokenUsage'
-        request_id:
-          type: string
+          description: Server-side identifier for tracing
 
     # ========================================================================
     # FEATURE 2: Coverage Optimization Schemas
