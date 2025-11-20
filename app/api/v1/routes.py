@@ -241,10 +241,8 @@ async def get_task_status(task_id: str) -> TaskStatusSchema:
     return TaskStatusSchema(
         task_id=task_data["id"],
         status=task_data["status"],
-        progress=None,  # Progress calculation can be added later
         result=task_data.get("result"),
         error=error,
         created_at=task_data.get("created_at"),
         updated_at=task_data.get("updated_at"),
-        estimated_completion=None,  # ETA calculation can be added later
     )

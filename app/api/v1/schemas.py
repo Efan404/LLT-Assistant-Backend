@@ -198,15 +198,9 @@ class TaskError(BaseModel):
 class TaskStatus(BaseModel):
     """Task status response schema."""
 
-    task_id: str = Field(description="Task identifier")
+    task_id: str = Field(description="Task identifier (UUID)")
     status: Literal["pending", "processing", "completed", "failed"] = Field(
         description="Current task status"
-    )
-    progress: Optional[float] = Field(
-        default=None,
-        ge=0.0,
-        le=1.0,
-        description="Task progress (0.0 to 1.0)",
     )
     result: Optional[Dict[str, Any]] = Field(
         default=None, description="Task result (when status=completed)"
@@ -219,7 +213,4 @@ class TaskStatus(BaseModel):
     )
     updated_at: Optional[str] = Field(
         default=None, description="Task last update timestamp (ISO 8601)"
-    )
-    estimated_completion: Optional[str] = Field(
-        default=None, description="Estimated completion time (ISO 8601)"
     )

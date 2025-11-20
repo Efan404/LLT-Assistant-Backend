@@ -1525,10 +1525,6 @@ components:
         status:
           type: string
           enum: [pending, processing, completed, failed]
-        progress:
-          type: number
-          minimum: 0
-          maximum: 1
         result:
           type: object
           description: Task result (when status=completed)
@@ -1544,9 +1540,6 @@ components:
           type: string
           format: date-time
         updated_at:
-          type: string
-          format: date-time
-        estimated_completion:
           type: string
           format: date-time
 
