@@ -1,6 +1,25 @@
 version: '3.8'
 
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   api:
     build: .
     ports:
@@ -11,8 +30,12 @@ services:
       - LLM_MODEL=${LLM_MODEL:-deepseek/deepseek-v3.2-exp}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - DEBUG=${DEBUG:-false}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
     env_file:
       - .env
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8886/health"]
       interval: 30s
@@ -25,6 +48,9 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  redis-data:
 
 networks:
   default:

@@ -17,7 +17,9 @@ FastAPI backend service for analyzing Python pytest unit tests for defects and r
   - Test code smells (timing dependencies, over-mocking, etc.)
   - Test mergeability analysis
 - **Actionable Fix Suggestions**: Provides specific code changes to fix detected issues
-- **Production Ready**: Docker support, structured logging, error handling
+- **Async Task Management**: Redis-backed task system for long-running operations
+- **Feature 1 - Test Generation**: Generate pytest tests from code and user descriptions
+- **Production Ready**: Docker support with Redis, structured logging, error handling
 
 ## Architecture
 
@@ -30,14 +32,27 @@ FastAPI backend service for analyzing Python pytest unit tests for defects and r
 │  │   API Layer  │───▶│ Analysis     │───▶│ LLM      │ │
 │  │   (Routes)   │    │ Orchestrator │    │ Client   │ │
 │  └──────────────┘    └──────────────┘    └──────────┘ │
-│                             │                           │
-│                             ▼                           │
-│                    ┌─────────────────┐                 │
-│                    │  Rule Engine    │                 │
-│                    │  (AST Analysis) │                 │
-│                    └─────────────────┘                 │
+│       │                       │                           │
+│       │                       ▼                           │
+│       │              ┌─────────────────┐                 │
+│       │              │  Rule Engine    │                 │
+│       │              │  (AST Analysis) │                 │
+│       │              └─────────────────┘                 │
+│       │                                                  │
+│       └──────────────┐                                  │
+│                      ▼                                  │
+│              ┌──────────────┐                           │
+│              │ Task Manager │                           │
+│              │   (Redis)    │                           │
+│              └──────────────┘                           │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │   Redis Store   │
+                    │  (Task State)   │
+                    └─────────────────┘
 ```
 
 ## Development Status
@@ -126,7 +141,13 @@ The backend is feature-complete and ready for production use. The system can:
    docker-compose up --build
    ```
 
-2. **The API will be available at:** http://localhost:8886
+2. **Services included:**
+   - **API Service**: FastAPI backend on port 8886
+   - **Redis Service**: Task management and caching on port 6379
+
+3. **The API will be available at:** http://localhost:8886
+   - API documentation: http://localhost:8886/docs
+   - Health check: http://localhost:8886/health
 
 ## API Usage
 
@@ -201,6 +222,24 @@ Configuration is managed through environment variables:
 | `LOG_FORMAT` | Log format (json/text) | `json` |
 | `MAX_FILE_SIZE` | Maximum file size in bytes | `1048576` (1MB) |
 | `MAX_FILES_PER_REQUEST` | Maximum files per request | `50` |
+| `REDIS_URL` | Redis connection URL for task management | `redis://localhost:6379/0` |
+
+### Redis Configuration
+
+The application uses Redis for async task management (Feature 1 - Test Generation). 
+
+**Local Development:**
+- Default: `redis://localhost:6379/0`
+- Ensure Redis is running locally or use Docker Compose
+
+**Docker Compose:**
+- Automatically configured: `redis://redis:6379/0`
+- Redis service is included in `docker-compose.yml`
+- Data is persisted in a Docker volume (`redis-data`)
+
+**Production:**
+- Set `REDIS_URL` to your Redis instance (e.g., `redis://redis.example.com:6379/0`)
+- Supports SSL connections: `rediss://` (with SSL certificate validation)
 
 ## Development
 
