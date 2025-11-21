@@ -1,4 +1,7 @@
-"""Async task management utilities backed by Redis."""
+"""Async task management utilities backed by Redis with in-memory fallback.
+
+Supports both Redis (production) and in-memory storage (development fallback).
+"""
 
 from __future__ import annotations
 
@@ -8,11 +11,12 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
-from redis.asyncio import Redis
+import redis.asyncio as redis
 
 from app.config import settings
+from app.core.in_memory_tasks import get_in_memory_task_store
 from app.core.llm_client import create_llm_client
 
 TASK_TTL_SECONDS = 60 * 60 * 24  # 24 hours
@@ -23,7 +27,9 @@ SYSTEM_PROMPT = (
     "is ready to paste into a test file."
 )
 
-_redis_client: Optional[Redis] = None
+_redis_client: Optional[redis.Redis] = None
+_in_memory_store: Optional[Any] = None
+_use_in_memory = False
 logger = logging.getLogger(__name__)
 
 
@@ -44,35 +50,81 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _get_redis_client() -> Redis:
+async def _get_redis_client() -> Optional[redis.Redis]:
+    """Get Redis client with error handling. Returns None if connection fails."""
     global _redis_client
+
+    if _redis_client is not None:
+        # Test if Redis connection is still alive
+        try:
+            if await _redis_client.ping():
+                return _redis_client
+        except Exception:
+            logger.warning("Redis connection lost, will attempt reconnection")
+            _redis_client = None
+
     if _redis_client is None:
         redis_url = settings.redis_url
+        if not redis_url:
+            return None
 
-        # For redis 4.x with rediss://, use ssl_cert_reqs parameter
-        if redis_url.startswith("rediss://"):
-            import ssl
+        try:
+            # For redis 4.x with rediss://, use ssl_cert_reqs parameter
+            if redis_url.startswith("rediss://"):
+                import ssl
 
-            _redis_client = Redis.from_url(
-                redis_url,
-                encoding="utf-8",
-                decode_responses=True,
-                ssl_cert_reqs=ssl.CERT_NONE,
+                _redis_client = redis.Redis.from_url(
+                    redis_url,
+                    encoding="utf-8",
+                    decode_responses=True,
+                    ssl_cert_reqs=ssl.CERT_NONE,
+                )
+            else:
+                _redis_client = redis.Redis.from_url(
+                    redis_url,
+                    encoding="utf-8",
+                    decode_responses=True,
+                )
+
+            # Test connection
+            if await _redis_client.ping():
+                logger.info("Redis connection established successfully")
+                return _redis_client
+            else:
+                logger.warning("Redis ping failed, falling back to memory storage")
+                _redis_client = None
+                return None
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to connect to Redis ({e}), falling back to memory storage"
             )
-        else:
-            _redis_client = Redis.from_url(
-                redis_url,
-                encoding="utf-8",
-                decode_responses=True,
-            )
+            _redis_client = None
+            return None
+
     return _redis_client
 
 
-async def create_task(payload: Dict[str, Any]) -> str:
-    """
-    Create a new asynchronous task, persist it in Redis, and return its id.
-    """
+async def _get_storage():
+    """Get appropriate storage (Redis or in-memory) based on availability."""
+    global _use_in_memory, _in_memory_store
 
+    if not _use_in_memory:
+        redis_client = await _get_redis_client()
+        if redis_client is not None:
+            return redis_client
+
+        # Redis not available, switch to in-memory
+        _use_in_memory = True
+        _in_memory_store = get_in_memory_task_store()
+        await _in_memory_store.start()
+        logger.info("Switched to in-memory task storage for development")
+
+    return _in_memory_store
+
+
+async def create_task(payload: Dict[str, Any]) -> str:
+    """Create a new asynchronous task and return its id."""
     task_id = str(uuid.uuid4())
     task_data = {
         "id": task_id,
@@ -85,15 +137,25 @@ async def create_task(payload: Dict[str, Any]) -> str:
     }
 
     await _save_task(task_id, task_data)
+    logger.info(f"Created task {task_id}")
     return task_id
 
 
 async def get_task(task_id: str) -> Optional[Dict[str, Any]]:
-    """Fetch task information from Redis."""
+    """Fetch task information from storage."""
+    storage = await _get_storage()
+    key = _task_key(task_id)
 
-    client = _get_redis_client()
-    raw = await client.get(_task_key(task_id))
-    return json.loads(raw) if raw else None
+    try:
+        if _use_in_memory:
+            raw = await storage.get(key)
+        else:
+            raw = await storage.get(key)
+
+        return json.loads(raw) if raw else None
+    except Exception as e:
+        logger.error(f"Error fetching task {task_id}: {e}")
+        return None
 
 
 async def update_task_status(
@@ -103,7 +165,6 @@ async def update_task_status(
     error: Optional[str] = None,
 ) -> None:
     """Update task status, persisting the latest metadata."""
-
     task = await get_task(task_id)
     if task is None:
         raise ValueError(f"Task {task_id} not found")
@@ -114,26 +175,39 @@ async def update_task_status(
     task["error"] = error
 
     await _save_task(task_id, task)
+    logger.debug(f"Updated task {task_id} status to {status.value}")
 
 
 async def _save_task(task_id: str, task_data: Dict[str, Any]) -> None:
-    client = _get_redis_client()
-    await client.setex(
-        _task_key(task_id),
-        TASK_TTL_SECONDS,
-        json.dumps(task_data),
-    )
+    """Save task data to storage."""
+    storage = await _get_storage()
+    key = _task_key(task_id)
+    json_data = json.dumps(task_data)
+
+    try:
+        if _use_in_memory:
+            await storage.setex(key, TASK_TTL_SECONDS, json_data)
+        else:
+            await storage.setex(key, TASK_TTL_SECONDS, json_data)
+    except Exception as e:
+        logger.error(f"Error saving task {task_id}: {e}")
+        raise
 
 
 async def execute_generate_tests_task(task_id: str, payload: Dict[str, Any]) -> None:
-    """
-    Execute test generation task asynchronously using asyncio.
-    This replaces the Celery worker implementation.
-    """
+    """Execute test generation task asynchronously."""
     try:
         await update_task_status(task_id, TaskStatus.PROCESSING)
-        generation = await _generate_tests_from_llm(payload)
-        result = {"raw_response": generation}
+
+        # Generate tests using new request format
+        generation_result = await _generate_tests_from_llm(payload)
+
+        # Format result as GenerateTestsResult per OpenAPI spec
+        result = {
+            "generated_code": generation_result["generated_code"],
+            "explanation": generation_result["explanation"],
+        }
+
         await update_task_status(task_id, TaskStatus.COMPLETED, result=result)
         logger.info(f"Task {task_id} completed successfully")
     except Exception as exc:
@@ -141,76 +215,119 @@ async def execute_generate_tests_task(task_id: str, payload: Dict[str, Any]) -> 
         await update_task_status(task_id, TaskStatus.FAILED, error=str(exc))
 
 
-async def _generate_tests_from_llm(payload: Dict[str, Any]) -> str:
-    code_submission = payload.get("code_submission", {})
-    code = code_submission.get("code", "")
-    description = payload.get("user_description", "")
-    metadata = code_submission.get("metadata") or {}
-    config = payload.get("config") or {}
+async def _generate_tests_from_llm(payload: Dict[str, Any]) -> Dict[str, str]:
+    """Generate tests from LLM using new OpenAPI-compliant request format."""
 
-    messages = _build_generation_messages(description, code, metadata, config)
+    # Extract fields from new flattened schema
+    source_code = payload.get("source_code", "")
+    user_description = payload.get("user_description", "")
+    existing_test_code = payload.get("existing_test_code", "")
+    context = payload.get("context", {}) or {}
+
+    messages = _build_generation_messages(
+        source_code=source_code,
+        user_description=user_description,
+        existing_test_code=existing_test_code,
+        context=context,
+    )
+
     client = create_llm_client()
     try:
-        return await client.chat_completion(
+        raw_response = await client.chat_completion(
             messages=messages,
             temperature=0.2,
-            max_tokens=1500,
+            max_tokens=2000,
         )
+
+        # Parse response to extract code and explanation
+        return _parse_generation_response(raw_response)
     finally:
         await client.close()
 
 
-def _build_generation_messages(
-    description: str, code: str, metadata: Dict[str, Any], config: Dict[str, Any]
-) -> list[Dict[str, str]]:
-    meta_lines = []
-    if metadata.get("file_path"):
-        meta_lines.append(f"- file_path: {metadata['file_path']}")
-    if metadata.get("module_path"):
-        meta_lines.append(f"- module_path: {metadata['module_path']}")
-    if metadata.get("git_context"):
-        git_ctx = metadata["git_context"]
-        if git_ctx.get("commit_hash"):
-            meta_lines.append(f"- commit: {git_ctx['commit_hash']}")
-        if git_ctx.get("branch"):
-            meta_lines.append(f"- branch: {git_ctx['branch']}")
+def _parse_generation_response(raw_response: str) -> Dict[str, str]:
+    """Parse LLM response to extract generated code and explanation."""
+    import re
 
-    config_lines = []
-    if config.get("max_test_count"):
-        config_lines.append(f"- max_tests: {config['max_test_count']}")
-    if config.get("preferred_style"):
-        config_lines.append(f"- preferred_style: {config['preferred_style']}")
-    if config.get("auto_review_before_return") is not None:
-        config_lines.append(
-            f"- auto_review_before_return: {config['auto_review_before_return']}"
+    # Try to extract code block
+    code_block_pattern = r"```python\n(.*?)\n```"
+    code_blocks = re.findall(code_block_pattern, raw_response, re.DOTALL)
+
+    if code_blocks:
+        generated_code = code_blocks[0].strip()
+        # The rest is explanation
+        explanation = re.sub(
+            code_block_pattern, "", raw_response, flags=re.DOTALL
+        ).strip()
+    else:
+        # No code block found, treat entire response as code
+        generated_code = raw_response.strip()
+        explanation = "Generated tests based on provided source code."
+
+    return {
+        "generated_code": generated_code,
+        "explanation": explanation or "Generated tests based on provided source code.",
+    }
+
+
+def _build_generation_messages(
+    source_code: str,
+    user_description: str,
+    existing_test_code: str,
+    context: Dict[str, Any],
+) -> list[Dict[str, str]]:
+    """Build messages for LLM chat completion with new request format."""
+
+    # Build context information
+    context_lines = []
+    if context.get("mode"):
+        context_lines.append(f"- mode: {context['mode']}")
+    if context.get("target_function"):
+        context_lines.append(f"- target_function: {context['target_function']}")
+
+    context_text = "\n".join(context_lines) if context_lines else "None provided."
+
+    # Build user prompt with new structure
+    user_prompt_parts = []
+
+    if user_description:
+        user_prompt_parts.append(f"User description:\n{user_description.strip()}")
+
+    user_prompt_parts.append(
+        f"Source code to test:\n```python\n{source_code.strip()}\n```"
+    )
+
+    if existing_test_code:
+        user_prompt_parts.append(
+            f"Existing test code (for context):\n```python\n{existing_test_code.strip()}\n```"
         )
 
-    metadata_text = "\n".join(meta_lines) if meta_lines else "None provided."
-    config_text = "\n".join(config_lines) if config_lines else "Defaults."
+    user_prompt_parts.append(f"Context:\n{context_text}")
 
-    user_prompt = f"""
-User description:
-{description.strip() or 'No description provided.'}
-
-Code under test (python):
-```python
-{code.strip()}
-```
-
-Code metadata:
-{metadata_text}
-
-Generation preferences:
-{config_text}
-
+    user_prompt_parts.append(
+        """
 Requirements:
-- Produce ready-to-run pytest code.
-- Prefer parametrization where it improves clarity.
-- Cover edge cases, invalid inputs, and typical scenarios.
-- Return responses as Markdown with python code blocks.
+- Generate high-quality pytest tests
+- Cover edge cases, error handling, and typical scenarios
+- Include clear assertions
+- Return response with generated code in a Python code block
+- Provide brief explanation of what was generated
 """
+    )
+
+    user_prompt = "\n\n".join(user_prompt_parts)
 
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user_prompt.strip()},
     ]
+
+
+async def cleanup_task_storage():
+    """Cleanup task storage on shutdown."""
+    global _in_memory_store
+
+    if _in_memory_store:
+        await _in_memory_store.stop()
+        _in_memory_store = None
+        logger.info("Task storage cleanup completed")

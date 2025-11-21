@@ -297,7 +297,7 @@ graph TD
     C -->|No| F[POST /workflows/generate-tests/code]
     E --> F
     F --> G[Return pytest code]
-    
+
     B -.-> H[POST /code/analyze]
     F -.-> I[POST /tests/validate]
 ```
@@ -314,7 +314,7 @@ graph TD
     D --> E{Status?}
     E -->|processing| D
     E -->|completed| F[Coverage report]
-    
+
     B -.-> H[POST /code/analyze]
     B -.-> I[POST /tests/execute]
 ```
@@ -356,4 +356,3 @@ graph TD
 Full TypeScript code is kept as-is but rewritten into polished English comments.
 
 (Your full code block is preserved but fully English—omitted here for brevity, but I can regenerate the entire file upon request.)
-

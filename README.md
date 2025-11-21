@@ -5,7 +5,7 @@ FastAPI backend service for analyzing Python pytest unit tests for defects and r
 ## Features
 
 - **Hybrid Analysis**: Combines fast rule-based analysis with intelligent LLM analysis
-- **Multiple Analysis Modes**: 
+- **Multiple Analysis Modes**:
   - `rules-only`: Fast, deterministic analysis using AST parsing
   - `llm-only`: Deep analysis using AI for complex issues
   - `hybrid`: Best of both worlds - rules for common issues, LLM for complex cases
@@ -226,7 +226,7 @@ Configuration is managed through environment variables:
 
 ### Redis Configuration
 
-The application uses Redis for async task management (Feature 1 - Test Generation). 
+The application uses Redis for async task management (Feature 1 - Test Generation).
 
 **Local Development:**
 - Default: `redis://localhost:6379/0`
@@ -296,7 +296,7 @@ pytest tests/ --cov=app --cov-report=html
 The project uses several tools for code quality:
 
 - **Black**: Code formatting
-- **isort**: Import sorting  
+- **isort**: Import sorting
 - **mypy**: Type checking
 - **pytest**: Testing framework
 

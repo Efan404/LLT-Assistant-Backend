@@ -14,16 +14,21 @@ from app.analyzers.rule_engine import RuleEngine
 from app.api.v1.schemas import (
     AnalyzeRequest,
     AnalyzeResponse,
+    AsyncJobResponse,
     GenerateTestsRequest,
-    GenerateTestsResponse,
     TaskError,
-    TaskStatus as TaskStatusSchema,
+    TaskStatusResponse,
 )
 from app.core.analyzer import TestAnalyzer
 from app.core.constants import MAX_FILES_PER_REQUEST
 from app.core.llm_analyzer import LLMAnalyzer
 from app.core.llm_client import create_llm_client
-from app.core.tasks import TaskStatus, create_task, execute_generate_tests_task, get_task
+from app.core.tasks import (
+    TaskStatus,
+    create_task,
+    execute_generate_tests_task,
+    get_task,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -176,28 +181,29 @@ async def get_analysis_modes() -> Dict[str, Any]:
 
 @router.post(
     "/workflows/generate-tests",
-    response_model=GenerateTestsResponse,
+    response_model=AsyncJobResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def submit_generate_tests(
     request: GenerateTestsRequest,
-) -> GenerateTestsResponse:
+) -> AsyncJobResponse:
     """
     Submit a test generation request and return an async task identifier.
     Uses asyncio.create_task to run the generation in the background.
     """
     try:
+        # Convert request to dict for task payload
         task_payload = request.model_dump()
         task_id = await create_task(task_payload)
 
         # Launch background task using asyncio instead of Celery
         asyncio.create_task(execute_generate_tests_task(task_id, task_payload))
 
-        return GenerateTestsResponse(
+        # Return AsyncJobResponse per OpenAPI spec
+        return AsyncJobResponse(
             task_id=task_id,
             status=TaskStatus.PENDING.value,
-            estimated_duration_seconds=None,
-            request_id=task_id,
+            estimated_time_seconds=30,  # Default estimate
         )
     except HTTPException:
         raise
@@ -209,8 +215,8 @@ async def submit_generate_tests(
         ) from exc
 
 
-@router.get("/tasks/{task_id}", response_model=TaskStatusSchema)
-async def get_task_status(task_id: str) -> TaskStatusSchema:
+@router.get("/tasks/{task_id}", response_model=TaskStatusResponse)
+async def get_task_status(task_id: str) -> TaskStatusResponse:
     """
     Get task status and results.
 
@@ -230,19 +236,18 @@ async def get_task_status(task_id: str) -> TaskStatusSchema:
     if task_data is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    # Convert task data to TaskStatusSchema
+    # Convert task data to TaskStatusResponse
     error = None
     if task_data.get("error"):
         error = TaskError(
             message=task_data["error"],
-            details=None,
+            code=None,  # Can be enhanced with specific error codes
         )
 
-    return TaskStatusSchema(
+    return TaskStatusResponse(
         task_id=task_data["id"],
         status=task_data["status"],
         result=task_data.get("result"),
         error=error,
         created_at=task_data.get("created_at"),
-        updated_at=task_data.get("updated_at"),
     )

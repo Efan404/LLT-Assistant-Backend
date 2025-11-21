@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 # System prompts for different analysis types
 
 MERGEABILITY_SYSTEM_PROMPT = """
-You are an expert Python pytest analyzer specializing in test code quality. 
-Your task is to analyze test functions and determine if they can be merged 
+You are an expert Python pytest analyzer specializing in test code quality.
+Your task is to analyze test functions and determine if they can be merged
 while maintaining clarity and following the single responsibility principle.
 
 Respond ONLY with valid JSON in this format:
@@ -28,8 +28,8 @@ Respond ONLY with valid JSON in this format:
 """
 
 ASSERTION_QUALITY_SYSTEM_PROMPT = """
-You are a pytest testing expert. Analyze test assertions to determine if they 
-adequately verify the expected behavior. Identify weak, missing, or redundant 
+You are a pytest testing expert. Analyze test assertions to determine if they
+adequately verify the expected behavior. Identify weak, missing, or redundant
 assertions.
 
 Respond ONLY with valid JSON in this format:
@@ -50,7 +50,7 @@ Respond ONLY with valid JSON in this format:
 """
 
 TEST_SMELL_SYSTEM_PROMPT = """
-You are a senior test engineer. Identify code smells in pytest test code that 
+You are a senior test engineer. Identify code smells in pytest test code that
 could lead to flaky tests, maintenance issues, or false positives/negatives.
 
 Respond ONLY with valid JSON in this format:

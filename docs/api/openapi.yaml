@@ -3,12 +3,12 @@ info:
   title: LLT Assistant API
   description: |
     **Unified API Specification for LLT Assistant VSCode Extension.**
-    
+
     **Core Philosophy: Frontend-First & Leaky Abstraction Avoidance**
     - The Backend provides business capabilities, not atomic code operations.
     - The Frontend handles local context (Git diffs, XML parsing, File reading).
     - Async workflows are used for heavy LLM operations.
-    
+
     **Feature Map:**
     - **Feature 1 (Test Generation):** `/workflows/generate-tests` (Async)
     - **Feature 2 (Coverage Optimization):** `/optimization/coverage` (Async)
@@ -127,7 +127,7 @@ paths:
         **Read-Only Analysis.**
         Frontend provides file changes (Git diffs) and relevant test file contents.
         Backend determines which tests are impacted and why.
-        
+
         *Note: To fix/regenerate tests, use `/workflows/generate-tests`.*
       tags:
         - Feature 3 - Impact
@@ -222,7 +222,7 @@ components:
           enum: [pending, processing]
         estimated_time_seconds:
           type: integer
-    
+
     TaskStatusResponse:
       type: object
       required:
@@ -371,7 +371,7 @@ components:
             related_tests:
               type: array
               description: |
-                Frontend uses static analysis (regex/AST) to guess which test files might be relevant 
+                Frontend uses static analysis (regex/AST) to guess which test files might be relevant
                 and sends their content here for the LLM to confirm impact.
               items:
                 type: object
@@ -507,7 +507,7 @@ components:
         description:
           type: string
           description: 'Menu label (e.g., "Fix: Remove redundancy").'
-  
+
   responses:
     BadRequest:
       description: Invalid request format or parameters.

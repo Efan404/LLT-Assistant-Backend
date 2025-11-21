@@ -1,6 +1,6 @@
 """Pydantic models for API v1."""
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -79,138 +79,90 @@ class AnalyzeResponse(BaseModel):
     metrics: AnalysisMetrics = Field(description="Analysis statistics")
 
 
-class GitContext(BaseModel):
-    """Git metadata associated with submitted code."""
-
-    commit_hash: Optional[str] = Field(
-        default=None, description="Git commit hash for the submitted code"
-    )
-    branch: Optional[str] = Field(
-        default=None, description="Git branch for the submitted code"
-    )
+# ============================================================================
+# Feature 1: Test Generation (OpenAPI compliant schemas)
+# ============================================================================
 
 
-class CodeMetadata(BaseModel):
-    """Additional metadata for submitted code."""
+class GenerateTestsContext(BaseModel):
+    """Context for test generation, used for regeneration scenarios."""
 
-    file_path: Optional[str] = Field(
-        default=None, description="File path relative to the project root"
+    mode: Literal["new", "regenerate"] = Field(
+        default="new", description="Generation mode"
     )
-    module_path: Optional[str] = Field(
-        default=None, description="Python module path for the file"
-    )
-    git_context: Optional[GitContext] = Field(
-        default=None, description="Associated git metadata"
-    )
-
-
-class CodeSubmission(BaseModel):
-    """Standardized code submission payload."""
-
-    code: str = Field(description="Source code content")
-    language: Literal["python"] = Field(
-        default="python", description="Programming language of the code"
-    )
-    framework: Literal["pytest", "unittest"] = Field(
-        default="pytest", description="Target testing framework"
-    )
-    metadata: Optional[CodeMetadata] = Field(
-        default=None, description="Optional metadata describing the code context"
-    )
-
-
-class ClientMetadata(BaseModel):
-    """Metadata describing the client making the request."""
-
-    extension_version: Optional[str] = Field(
-        default=None, description="Client extension version"
-    )
-    vscode_version: Optional[str] = Field(
-        default=None, description="VSCode version information"
-    )
-    platform: Optional[str] = Field(
-        default=None, description="Client platform (e.g., darwin-arm64)"
-    )
-    workspace_hash: Optional[str] = Field(
-        default=None, description="Opaque identifier for the workspace"
-    )
-
-
-class GenerateTestsConfig(BaseModel):
-    """Optional configuration overrides for test generation."""
-
-    auto_review_before_return: bool = Field(
-        default=True, description="Run automated checks before returning results"
-    )
-    max_test_count: int = Field(
-        default=8,
-        ge=1,
-        le=20,
-        description="Maximum number of tests to generate",
-    )
-    preferred_style: Optional[
-        Literal["pytest_parametrize", "pytest_plain", "unittest"]
-    ] = Field(
-        default=None, description="Preferred output style for generated tests"
+    target_function: Optional[str] = Field(
+        default=None, description="Target function name for regeneration"
     )
 
 
 class GenerateTestsRequest(BaseModel):
-    """Request payload for the Feature 1 workflow."""
+    """Request payload for Feature 1 workflow: generate tests.
 
-    code_submission: CodeSubmission = Field(
-        description="Code snippet that requires test generation"
+    OpenAPI spec compliant schema with flattened structure.
+    """
+
+    source_code: str = Field(description="The Python source code to test")
+    user_description: Optional[str] = Field(
+        default=None, description="Optional hint or requirement from user"
     )
-    user_description: str = Field(
-        min_length=1,
-        max_length=200,
-        description="Short natural language description of user expectations",
+    existing_test_code: Optional[str] = Field(
+        default=None,
+        description="Optional existing test code (context for regeneration)",
     )
-    config: Optional[GenerateTestsConfig] = Field(
-        default=None, description="Optional generation configuration"
-    )
-    client_metadata: Optional[ClientMetadata] = Field(
-        default=None, description="Client metadata for telemetry and debugging"
+    context: Optional[GenerateTestsContext] = Field(
+        default=None,
+        description="Extra context if triggered by Feature 3 (Regeneration)",
     )
 
 
-class GenerateTestsResponse(BaseModel):
-    """Response payload after submitting a test generation task."""
+class AsyncJobResponse(BaseModel):
+    """Response after submitting an async job.
 
-    task_id: str = Field(description="Asynchronous task identifier")
-    status: Literal["pending", "processing"] = Field(
-        default="pending", description="Initial task status"
+    Used for /workflows/generate-tests and /optimization/coverage.
+    """
+
+    task_id: str = Field(description="Asynchronous task identifier (UUID)")
+    status: Literal["pending", "processing"] = Field(description="Initial task status")
+    estimated_time_seconds: Optional[int] = Field(
+        default=None, description="Estimated time to completion in seconds"
     )
-    request_id: Optional[str] = Field(
-        default=None, description="Server-side request identifier for tracing"
-    )
+
+
+class GenerateTestsResult(BaseModel):
+    """Result structure for completed test generation tasks."""
+
+    generated_code: str = Field(description="The complete generated test file content")
+    explanation: str = Field(description="Explanation of what was generated")
 
 
 class TaskError(BaseModel):
     """Error details for failed tasks."""
 
     message: str = Field(description="Error message")
+    code: Optional[str] = Field(default=None, description="Error code identifier")
     details: Optional[Dict[str, Any]] = Field(
         default=None, description="Additional error details"
     )
 
 
-class TaskStatus(BaseModel):
-    """Task status response schema."""
+class TaskStatusResponse(BaseModel):
+    """Task status response for polling endpoints.
+
+    Used for /tasks/{task_id}.
+    """
 
     task_id: str = Field(description="Task identifier (UUID)")
     status: Literal["pending", "processing", "completed", "failed"] = Field(
         description="Current task status"
     )
-    result: Optional[Dict[str, Any]] = Field(
-        default=None, description="Task result (when status=completed)"
+    created_at: Optional[str] = Field(
+        default=None,
+        description="Task creation timestamp (ISO 8601 format)",
+    )
+    result: Optional[Union[GenerateTestsResult, Dict[str, Any]]] = Field(
+        default=None,
+        description="Task result (when status=completed, type depends on workflow)",
     )
     error: Optional[TaskError] = Field(
         default=None, description="Error details (when status=failed)"
-    )
-    created_at: Optional[str] = Field(
-        default=None, description="Task creation timestamp (ISO 8601)"
-    )
-    updated_at: Optional[str] = Field(
-        default=None, description="Task last update timestamp (ISO 8601)"
     )
