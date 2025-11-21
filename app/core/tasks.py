@@ -323,6 +323,191 @@ Requirements:
     ]
 
 
+async def execute_coverage_optimization_task(
+    task_id: str, payload: Dict[str, Any]
+) -> None:
+    """Execute coverage optimization task asynchronously."""
+    try:
+        await update_task_status(task_id, TaskStatus.PROCESSING)
+
+        # Generate coverage optimization using LLM
+        optimization_result = await _generate_coverage_optimization_from_llm(payload)
+
+        # Format result as CoverageOptimizationResult per OpenAPI spec
+        result = {
+            "recommended_tests": optimization_result["recommended_tests"],
+        }
+
+        await update_task_status(task_id, TaskStatus.COMPLETED, result=result)
+        logger.info(f"Task {task_id} completed successfully")
+    except Exception as exc:
+        logger.error(f"Task {task_id} failed: {exc}", exc_info=True)
+        await update_task_status(task_id, TaskStatus.FAILED, error=str(exc))
+
+
+async def _generate_coverage_optimization_from_llm(
+    payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Generate coverage optimization recommendations using LLM."""
+
+    # Extract fields from CoverageOptimizationRequest
+    source_code = payload.get("source_code", "")
+    existing_test_code = payload.get("existing_test_code", "")
+    uncovered_ranges = payload.get("uncovered_ranges", [])
+    framework = payload.get("framework", "pytest")
+
+    messages = _build_coverage_optimization_messages(
+        source_code=source_code,
+        existing_test_code=existing_test_code,
+        uncovered_ranges=uncovered_ranges,
+        framework=framework,
+    )
+
+    client = create_llm_client()
+    try:
+        raw_response = await client.chat_completion(
+            messages=messages,
+            temperature=0.2,
+            max_tokens=3000,  # May need more tokens for multiple test recommendations
+        )
+
+        # Parse response to extract coverage optimization recommendations
+        return _parse_coverage_optimization_response(raw_response)
+    finally:
+        await client.close()
+
+
+def _parse_coverage_optimization_response(raw_response: str) -> Dict[str, Any]:
+    """Parse LLM response to extract coverage optimization recommendations."""
+    import json
+    import re
+
+    # Try to extract JSON block first
+    json_block_pattern = r"```json\n(.*?)\n```"
+    json_blocks = re.findall(json_block_pattern, raw_response, re.DOTALL)
+
+    if json_blocks:
+        try:
+            # Parse JSON from code block
+            data = json.loads(json_blocks[0].strip())
+            if "recommended_tests" in data:
+                return data
+        except json.JSONDecodeError:
+            pass
+    try:
+        # Try to parse entire response as JSON
+        data = json.loads(raw_response.strip())
+        if "recommended_tests" in data:
+            return data
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback: Try to extract Python code blocks and build recommendations
+    code_block_pattern = r"```python\n(.*?)\n```"
+    code_blocks = re.findall(code_block_pattern, raw_response, re.DOTALL)
+
+    recommended_tests = []
+    for i, code in enumerate(code_blocks):
+        # Generate a reasonable target line and description
+        target_line = 50 + (i * 10)  # Placeholder logic
+        scenario_description = f"Test case {i + 1} to cover uncovered code"
+        expected_coverage_impact = "Covers previously uncovered lines"
+
+        recommended_tests.append(
+            {
+                "test_code": code.strip(),
+                "target_line": target_line,
+                "scenario_description": scenario_description,
+                "expected_coverage_impact": expected_coverage_impact,
+            }
+        )
+
+    # If no code blocks found, create a generic recommendation
+    if not recommended_tests:
+        recommended_tests.append(
+            {
+                "test_code": raw_response.strip(),
+                "target_line": 50,
+                "scenario_description": "Generated test based on coverage analysis",
+                "expected_coverage_impact": "Improves overall coverage",
+            }
+        )
+
+    return {"recommended_tests": recommended_tests}
+
+
+def _build_coverage_optimization_messages(
+    source_code: str,
+    existing_test_code: str,
+    uncovered_ranges: list,
+    framework: str,
+) -> list[Dict[str, str]]:
+    """Build messages for LLM coverage optimization chat completion."""
+
+    # Format uncovered ranges for the prompt
+    ranges_text = ""
+    for i, rng in enumerate(uncovered_ranges, 1):
+        start_line = rng.get("start_line", "unknown")
+        end_line = rng.get("end_line", "unknown")
+        rng_type = rng.get("type", "unknown")
+        ranges_text += f"  {i}. Lines {start_line}-{end_line} ({rng_type} coverage)\n"
+
+    if not ranges_text:
+        ranges_text = "  No specific uncovered ranges provided.\n"
+
+    user_prompt = f"""
+You are an expert Python test engineer specializing in coverage optimization.
+
+**Source code to increase coverage:**
+```python
+{source_code.strip()}
+```
+
+**Current test code (for context):**
+```python
+{existing_test_code.strip() if existing_test_code else "# No existing tests"}
+```
+
+**Uncovered ranges identified by coverage analysis:**
+{ranges_text}
+
+**Framework:** {framework}
+
+**Your task:**
+Generate targeted test cases to fill these specific coverage gaps.
+Focus on:
+1. Testing the exact uncovered lines/ranges
+2. Edge cases that might not be covered
+3. Clear, maintainable test code
+
+**Output format:**
+Provide a JSON object with a "recommended_tests" array containing:
+- "test_code": Python code for the test
+- "target_line": Suggested line number to add this test
+- "scenario_description": Brief description of what this test covers
+- "expected_coverage_impact": What lines/branches this will cover
+
+Example output:
+```json
+{{
+  "recommended_tests": [
+    {{
+      "test_code": "def test_add_negative_numbers():\\n    assert add(-1, -2) == -3",
+      "target_line": 42,
+      "scenario_description": "Test addition with negative numbers",
+      "expected_coverage_impact": "Covers line 5-6 in calculate_tax function"
+    }}
+  ]
+}}
+```
+"""
+
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt.strip()},
+    ]
+
+
 async def cleanup_task_storage():
     """Cleanup task storage on shutdown."""
     global _in_memory_store

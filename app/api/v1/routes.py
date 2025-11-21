@@ -15,6 +15,7 @@ from app.api.v1.schemas import (
     AnalyzeRequest,
     AnalyzeResponse,
     AsyncJobResponse,
+    CoverageOptimizationRequest,
     GenerateTestsRequest,
     TaskError,
     TaskStatusResponse,
@@ -26,6 +27,7 @@ from app.core.llm_client import create_llm_client
 from app.core.tasks import (
     TaskStatus,
     create_task,
+    execute_coverage_optimization_task,
     execute_generate_tests_task,
     get_task,
 )
@@ -212,6 +214,44 @@ async def submit_generate_tests(
         raise HTTPException(
             status_code=500,
             detail="Failed to submit test generation task",
+        ) from exc
+
+
+@router.post(
+    "/optimization/coverage",
+    response_model=AsyncJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def submit_coverage_optimization(
+    request: CoverageOptimizationRequest,
+) -> AsyncJobResponse:
+    """
+    Submit a coverage optimization request and return an async task identifier.
+    Uses asyncio.create_task to run the optimization in the background.
+    """
+    try:
+        # Convert request to dict for task payload
+        task_payload = request.model_dump()
+        task_id = await create_task(task_payload)
+
+        # Launch background task using asyncio
+        asyncio.create_task(execute_coverage_optimization_task(task_id, task_payload))
+
+        # Return AsyncJobResponse per OpenAPI spec
+        return AsyncJobResponse(
+            task_id=task_id,
+            status=TaskStatus.PENDING.value,
+            estimated_time_seconds=30,  # Default estimate
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "Failed to submit coverage optimization task: %s", exc, exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to submit coverage optimization task",
         ) from exc
 
 

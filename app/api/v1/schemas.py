@@ -145,6 +145,48 @@ class TaskError(BaseModel):
     )
 
 
+class CoverageUncoveredRange(BaseModel):
+    """Uncovered code range for coverage optimization."""
+
+    start_line: int = Field(description="Start line number of uncovered range")
+    end_line: int = Field(description="End line number of uncovered range")
+    type: Literal["line", "branch"] = Field(description="Type of coverage gap")
+
+
+class CoverageOptimizationRequest(BaseModel):
+    """Request payload for Feature 2 workflow: coverage optimization."""
+
+    source_code: str = Field(description="Target source file content")
+    existing_test_code: Optional[str] = Field(
+        default=None, description="Current test file content"
+    )
+    uncovered_ranges: List[CoverageUncoveredRange] = Field(
+        description="Ranges parsed by Frontend from coverage.xml"
+    )
+    framework: Literal["pytest", "unittest"] = Field(
+        default="pytest", description="Target testing framework"
+    )
+
+
+class CoverageOptimizationTest(BaseModel):
+    """Individual recommended test for coverage optimization."""
+
+    test_code: str = Field(description="The code snippet for the new test case")
+    target_line: int = Field(
+        description="Recommended line number to insert the ghost text"
+    )
+    scenario_description: str = Field(description="Description of the test scenario")
+    expected_coverage_impact: str = Field(description="Expected impact on coverage")
+
+
+class CoverageOptimizationResult(BaseModel):
+    """Result structure for completed coverage optimization tasks."""
+
+    recommended_tests: List[CoverageOptimizationTest] = Field(
+        description="List of recommended tests to fill coverage gaps"
+    )
+
+
 class TaskStatusResponse(BaseModel):
     """Task status response for polling endpoints.
 
@@ -159,7 +201,9 @@ class TaskStatusResponse(BaseModel):
         default=None,
         description="Task creation timestamp (ISO 8601 format)",
     )
-    result: Optional[Union[GenerateTestsResult, Dict[str, Any]]] = Field(
+    result: Optional[
+        Union[GenerateTestsResult, CoverageOptimizationResult, Dict[str, Any]]
+    ] = Field(
         default=None,
         description="Task result (when status=completed, type depends on workflow)",
     )
