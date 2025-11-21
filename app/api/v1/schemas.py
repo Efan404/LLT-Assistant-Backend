@@ -97,7 +97,7 @@ class GenerateTestsContext(BaseModel):
 
 class GenerateTestsRequest(BaseModel):
     """Request payload for Feature 1 workflow: generate tests.
-    
+
     OpenAPI spec compliant schema with flattened structure.
     """
 
@@ -117,14 +117,12 @@ class GenerateTestsRequest(BaseModel):
 
 class AsyncJobResponse(BaseModel):
     """Response after submitting an async job.
-    
+
     Used for /workflows/generate-tests and /optimization/coverage.
     """
 
     task_id: str = Field(description="Asynchronous task identifier (UUID)")
-    status: Literal["pending", "processing"] = Field(
-        description="Initial task status"
-    )
+    status: Literal["pending", "processing"] = Field(description="Initial task status")
     estimated_time_seconds: Optional[int] = Field(
         default=None, description="Estimated time to completion in seconds"
     )
@@ -133,9 +131,7 @@ class AsyncJobResponse(BaseModel):
 class GenerateTestsResult(BaseModel):
     """Result structure for completed test generation tasks."""
 
-    generated_code: str = Field(
-        description="The complete generated test file content"
-    )
+    generated_code: str = Field(description="The complete generated test file content")
     explanation: str = Field(description="Explanation of what was generated")
 
 
@@ -151,7 +147,7 @@ class TaskError(BaseModel):
 
 class TaskStatusResponse(BaseModel):
     """Task status response for polling endpoints.
-    
+
     Used for /tasks/{task_id}.
     """
 
@@ -170,4 +166,3 @@ class TaskStatusResponse(BaseModel):
     error: Optional[TaskError] = Field(
         default=None, description="Error details (when status=failed)"
     )
-

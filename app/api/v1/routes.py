@@ -23,7 +23,12 @@ from app.core.analyzer import TestAnalyzer
 from app.core.constants import MAX_FILES_PER_REQUEST
 from app.core.llm_analyzer import LLMAnalyzer
 from app.core.llm_client import create_llm_client
-from app.core.tasks import TaskStatus, create_task, execute_generate_tests_task, get_task
+from app.core.tasks import (
+    TaskStatus,
+    create_task,
+    execute_generate_tests_task,
+    get_task,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

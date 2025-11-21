@@ -28,13 +28,11 @@ class Settings(BaseSettings):
         validation_alias="LLM_BASE_URL",
         description="LLM API base URL (from LLM_BASE_URL env var)",
     )
-    llm_model: str = Field(
-        default="deepseek-chat", description="LLM model name"
-    )
+    llm_model: str = Field(default="deepseek-chat", description="LLM model name")
     llm_timeout: float = Field(
         default=120.0,
         validation_alias="LLM_TIMEOUT",
-        description="LLM API timeout in seconds"
+        description="LLM API timeout in seconds",
     )
     llm_max_retries: int = Field(default=3, description="Maximum LLM API retries")
 

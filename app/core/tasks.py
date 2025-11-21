@@ -96,7 +96,9 @@ async def _get_redis_client() -> Optional[redis.Redis]:
                 return None
 
         except Exception as e:
-            logger.warning(f"Failed to connect to Redis ({e}), falling back to memory storage")
+            logger.warning(
+                f"Failed to connect to Redis ({e}), falling back to memory storage"
+            )
             _redis_client = None
             return None
 
@@ -254,7 +256,9 @@ def _parse_generation_response(raw_response: str) -> Dict[str, str]:
     if code_blocks:
         generated_code = code_blocks[0].strip()
         # The rest is explanation
-        explanation = re.sub(code_block_pattern, "", raw_response, flags=re.DOTALL).strip()
+        explanation = re.sub(
+            code_block_pattern, "", raw_response, flags=re.DOTALL
+        ).strip()
     else:
         # No code block found, treat entire response as code
         generated_code = raw_response.strip()
@@ -289,7 +293,9 @@ def _build_generation_messages(
     if user_description:
         user_prompt_parts.append(f"User description:\n{user_description.strip()}")
 
-    user_prompt_parts.append(f"Source code to test:\n```python\n{source_code.strip()}\n```")
+    user_prompt_parts.append(
+        f"Source code to test:\n```python\n{source_code.strip()}\n```"
+    )
 
     if existing_test_code:
         user_prompt_parts.append(

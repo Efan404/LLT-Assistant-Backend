@@ -42,12 +42,12 @@ class InMemoryTaskStore:
         task_data = self._tasks.get(key)
         if task_data is None:
             return None
-        
+
         # Check if expired
         if task_data.get("expires_at", 0) < time.time():
             del self._tasks[key]
             return None
-        
+
         return task_data["data"]
 
     async def setex(self, key: str, ttl_seconds: int, value: str):
@@ -72,7 +72,8 @@ class InMemoryTaskStore:
                 await asyncio.sleep(300)  # Run every 5 minutes
                 current_time = time.time()
                 expired_keys = [
-                    key for key, task in self._tasks.items()
+                    key
+                    for key, task in self._tasks.items()
                     if task["expires_at"] < current_time
                 ]
                 for key in expired_keys:
