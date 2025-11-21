@@ -166,3 +166,94 @@ class TaskStatusResponse(BaseModel):
     error: Optional[TaskError] = Field(
         default=None, description="Error details (when status=failed)"
     )
+
+
+# ============================================================================
+# Feature 3: Impact Analysis (OpenAPI compliant schemas)
+# ============================================================================
+
+
+class FileChangeEntry(BaseModel):
+    """File change entry within project_context.files_changed."""
+
+    path: str = Field(description="Path to changed file relative to project root")
+    change_type: str = Field(
+        default="modified",
+        description="Type of change: added, modified, or removed",
+    )
+
+
+class ProjectImpactContext(BaseModel):
+    """Project context containing file changes and related test files for impact analysis."""
+
+    files_changed: List[FileChangeEntry] = Field(
+        description="List of files that have changed"
+    )
+    related_tests: List[str] = Field(
+        description="List of test files that may be impacted (optional, can be empty)"
+    )
+
+
+class ImpactSeverity(str):
+    """Impact severity enumeration."""
+
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+    NONE = "none"
+
+    @classmethod
+    def get_values(cls) -> List[str]:
+        """Get available severity values."""
+        return [cls.HIGH, cls.MEDIUM, cls.LOW, cls.NONE]
+
+
+class ImpactSuggestedAction(str):
+    """Suggested action enumeration."""
+
+    RUN_ALL = "run-all-tests"
+    RUN_AFFECTED = "run-affected-tests"
+    NO_ACTION = "no-action"
+
+    @classmethod
+    def get_values(cls) -> List[str]:
+        """Get available action values."""
+        return [cls.RUN_ALL, cls.RUN_AFFECTED, cls.NO_ACTION]
+
+
+class ImpactItem(BaseModel):
+    """Individual impact analysis item."""
+
+    test_path: str = Field(description="Path to potentially impacted test file")
+    impact_score: float = Field(default=0.0, description="Impact score from 0.0 to 1.0")
+    severity: Literal["high", "medium", "low", "none"] = Field(
+        default="none", description="Impact severity level"
+    )
+    reasons: Optional[List[str]] = Field(
+        default=None, description="List of reasons for the impact assessment"
+    )
+
+
+class ImpactAnalysisRequest(BaseModel):
+    """Request payload for /analysis/impact endpoint."""
+
+    project_context: ProjectImpactContext = Field(
+        description="Project context with changed files and related tests"
+    )
+
+
+class ImpactAnalysisResponse(BaseModel):
+    """Response payload for /analysis/impact endpoint."""
+
+    impacted_tests: List[ImpactItem] = Field(
+        description="List of test files that may be impacted by the changes"
+    )
+    severity: Literal["high", "medium", "low", "none"] = Field(
+        default="none", description="Overall impact severity level"
+    )
+    suggested_action: Literal["run-all-tests", "run-affected-tests", "no-action"] = (
+        Field(
+            default="no-action",
+            description="Suggested action based on impact analysis",
+        )
+    )
