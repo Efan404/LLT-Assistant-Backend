@@ -16,6 +16,8 @@ from app.api.v1.schemas import (
     AnalyzeResponse,
     AsyncJobResponse,
     GenerateTestsRequest,
+    QualityAnalysisRequest,
+    QualityAnalysisResponse,
     TaskError,
     TaskStatusResponse,
 )
@@ -23,6 +25,7 @@ from app.core.analyzer import TestAnalyzer
 from app.core.constants import MAX_FILES_PER_REQUEST
 from app.core.llm_analyzer import LLMAnalyzer
 from app.core.llm_client import create_llm_client
+from app.core.quality_service import QualityAnalysisService
 from app.core.tasks import (
     TaskStatus,
     create_task,
@@ -59,6 +62,25 @@ def get_analyzer() -> TestAnalyzer:
         logger.error(f"Failed to initialize analyzer: {e}")
         raise HTTPException(
             status_code=503, detail=f"Failed to initialize analyzer: {str(e)}"
+        )
+
+
+def get_quality_service() -> QualityAnalysisService:
+    """
+    Dependency injection factory for QualityAnalysisService.
+
+    Returns:
+        QualityAnalysisService instance
+
+    Raises:
+        HTTPException: If service initialization fails
+    """
+    try:
+        return QualityAnalysisService()
+    except Exception as e:
+        logger.error(f"Failed to initialize quality service: {e}")
+        raise HTTPException(
+            status_code=503, detail=f"Failed to initialize quality service: {str(e)}"
         )
 
 
@@ -251,3 +273,57 @@ async def get_task_status(task_id: str) -> TaskStatusResponse:
         error=error,
         created_at=task_data.get("created_at"),
     )
+
+
+@router.post("/quality/analyze", response_model=QualityAnalysisResponse)
+async def analyze_quality(
+    request: QualityAnalysisRequest,
+    quality_service: QualityAnalysisService = Depends(get_quality_service),
+) -> QualityAnalysisResponse:
+    """
+    Analyze multiple test files for quality issues with fix suggestions.
+
+    This endpoint provides batch quality analysis with suggestions for fixes.
+    Uses fast (rules-only), deep (LLM-only), or hybrid analysis modes.
+
+    Args:
+        request: Quality analysis request containing files and mode
+        quality_service: Injected QualityAnalysisService instance
+
+    Returns:
+        Quality analysis response with issues and summary statistics
+
+    Raises:
+        HTTPException: If analysis fails or request is invalid
+    """
+    try:
+        # Validate request
+        if not request.files:
+            raise HTTPException(
+                status_code=400, detail="No files provided for analysis"
+            )
+
+        if len(request.files) > MAX_FILES_PER_REQUEST:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Too many files (max {MAX_FILES_PER_REQUEST})",
+            )
+
+        # Run quality analysis
+        result = await quality_service.analyze_batch(
+            files=request.files, mode=request.mode
+        )
+
+        return result
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Quality analysis failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Quality analysis failed due to internal error"
+        )
