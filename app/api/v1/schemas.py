@@ -276,3 +276,69 @@ class ImpactAnalysisResponse(BaseModel):
             description="Suggested action based on impact analysis",
         )
     )
+
+
+# ============================================================================
+# Feature 4: Quality Analysis (Batch)
+# ============================================================================
+
+
+class QualityAnalysisRequest(BaseModel):
+    """Request payload for /quality/analyze endpoint."""
+
+    files: List[FileInput] = Field(
+        description="List of files to analyze for quality issues"
+    )
+    mode: Literal["fast", "deep", "hybrid"] = Field(
+        default="hybrid",
+        description="Analysis mode: fast (rules only), deep (LLM only), or hybrid (recommended)",
+    )  # Note: Using same FileInput as other endpoints
+
+
+class FixSuggestion(BaseModel):
+    """Fix suggestion for a quality issue."""
+
+    type: Literal["replace", "delete", "insert"] = Field(
+        description="Type of fix action"
+    )
+    new_text: Optional[str] = Field(default=None, description="The code to apply")
+    description: Optional[str] = Field(
+        default=None, description='Menu label (e.g., "Fix: Remove redundancy")'
+    )
+
+
+class QualityIssue(BaseModel):
+    """Detected quality issue in test code."""
+
+    file_path: str = Field(description="File path where issue was detected")
+    line: int = Field(description="1-based line number of the issue")
+    column: int = Field(default=0, description="Column number of the issue")
+    severity: Literal["error", "warning", "info"] = Field(
+        description="Issue severity level"
+    )
+    code: str = Field(description="Issue code identifier (e.g., 'redundant-assertion')")
+    message: str = Field(description="Human-readable issue description")
+    detected_by: Literal["rule", "llm"] = Field(description="Detection method used")
+    suggestion: Optional[FixSuggestion] = Field(
+        default=None, description="Fix suggestion for the issue"
+    )
+
+
+class QualitySummary(BaseModel):
+    """Summary statistics for quality analysis."""
+
+    total_files: int = Field(description="Total number of files analyzed")
+    total_issues: int = Field(description="Total number of issues detected")
+    critical_issues: int = Field(
+        description="Number of critical (error severity) issues"
+    )
+
+
+class QualityAnalysisResponse(BaseModel):
+    """Response payload for /quality/analyze endpoint."""
+
+    analysis_id: Optional[str] = Field(
+        default=None, description="Unique analysis identifier"
+    )
+    summary: QualitySummary = Field(description="Analysis summary statistics")
+    issues: List[QualityIssue] = Field(description="List of detected quality issues")
