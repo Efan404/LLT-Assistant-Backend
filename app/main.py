@@ -24,6 +24,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
     # Shutdown
     logger.info(f"Shutting down {settings.app_name}")
+    
+    # Cleanup task storage
+    try:
+        from app.core.tasks import cleanup_task_storage
+        await cleanup_task_storage()
+    except Exception as e:
+        logger.warning(f"Error during task storage cleanup: {e}")
 
 
 # Create FastAPI application
