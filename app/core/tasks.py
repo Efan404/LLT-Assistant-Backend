@@ -132,8 +132,16 @@ async def execute_generate_tests_task(task_id: str, payload: Dict[str, Any]) -> 
     """
     try:
         await update_task_status(task_id, TaskStatus.PROCESSING)
-        generation = await _generate_tests_from_llm(payload)
-        result = {"raw_response": generation}
+        
+        # Generate tests using new request format
+        generation_result = await _generate_tests_from_llm(payload)
+        
+        # Format result as GenerateTestsResult per OpenAPI spec
+        result = {
+            "generated_code": generation_result["generated_code"],
+            "explanation": generation_result["explanation"],
+        }
+        
         await update_task_status(task_id, TaskStatus.COMPLETED, result=result)
         logger.info(f"Task {task_id} completed successfully")
     except Exception as exc:
@@ -141,74 +149,101 @@ async def execute_generate_tests_task(task_id: str, payload: Dict[str, Any]) -> 
         await update_task_status(task_id, TaskStatus.FAILED, error=str(exc))
 
 
-async def _generate_tests_from_llm(payload: Dict[str, Any]) -> str:
-    code_submission = payload.get("code_submission", {})
-    code = code_submission.get("code", "")
-    description = payload.get("user_description", "")
-    metadata = code_submission.get("metadata") or {}
-    config = payload.get("config") or {}
-
-    messages = _build_generation_messages(description, code, metadata, config)
+async def _generate_tests_from_llm(payload: Dict[str, Any]) -> Dict[str, str]:
+    """Generate tests from LLM using new OpenAPI-compliant request format."""
+    
+    # Extract fields from new flattened schema
+    source_code = payload.get("source_code", "")
+    user_description = payload.get("user_description", "")
+    existing_test_code = payload.get("existing_test_code", "")
+    context = payload.get("context", {}) or {}
+    
+    messages = _build_generation_messages(
+        source_code=source_code,
+        user_description=user_description,
+        existing_test_code=existing_test_code,
+        context=context,
+    )
+    
     client = create_llm_client()
     try:
-        return await client.chat_completion(
+        raw_response = await client.chat_completion(
             messages=messages,
             temperature=0.2,
-            max_tokens=1500,
+            max_tokens=2000,
         )
+        
+        # Parse response to extract code and explanation
+        return _parse_generation_response(raw_response)
     finally:
         await client.close()
 
 
+def _parse_generation_response(raw_response: str) -> Dict[str, str]:
+    """Parse LLM response to extract generated code and explanation."""
+    import re
+    
+    # Try to extract code block
+    code_block_pattern = r"```python\n(.*?)\n```"
+    code_blocks = re.findall(code_block_pattern, raw_response, re.DOTALL)
+    
+    if code_blocks:
+        generated_code = code_blocks[0].strip()
+        # The rest is explanation
+        explanation = re.sub(code_block_pattern, "", raw_response, flags=re.DOTALL).strip()
+    else:
+        # No code block found, treat entire response as code
+        generated_code = raw_response.strip()
+        explanation = "Generated tests based on provided source code."
+    
+    return {
+        "generated_code": generated_code,
+        "explanation": explanation or "Generated tests based on provided source code.",
+    }
+
+
 def _build_generation_messages(
-    description: str, code: str, metadata: Dict[str, Any], config: Dict[str, Any]
+    source_code: str,
+    user_description: str,
+    existing_test_code: str,
+    context: Dict[str, Any],
 ) -> list[Dict[str, str]]:
-    meta_lines = []
-    if metadata.get("file_path"):
-        meta_lines.append(f"- file_path: {metadata['file_path']}")
-    if metadata.get("module_path"):
-        meta_lines.append(f"- module_path: {metadata['module_path']}")
-    if metadata.get("git_context"):
-        git_ctx = metadata["git_context"]
-        if git_ctx.get("commit_hash"):
-            meta_lines.append(f"- commit: {git_ctx['commit_hash']}")
-        if git_ctx.get("branch"):
-            meta_lines.append(f"- branch: {git_ctx['branch']}")
-
-    config_lines = []
-    if config.get("max_test_count"):
-        config_lines.append(f"- max_tests: {config['max_test_count']}")
-    if config.get("preferred_style"):
-        config_lines.append(f"- preferred_style: {config['preferred_style']}")
-    if config.get("auto_review_before_return") is not None:
-        config_lines.append(
-            f"- auto_review_before_return: {config['auto_review_before_return']}"
+    """Build messages for LLM chat completion with new request format."""
+    
+    # Build context information
+    context_lines = []
+    if context.get("mode"):
+        context_lines.append(f"- mode: {context['mode']}")
+    if context.get("target_function"):
+        context_lines.append(f"- target_function: {context['target_function']}")
+    
+    context_text = "\n".join(context_lines) if context_lines else "None provided."
+    
+    # Build user prompt with new structure
+    user_prompt_parts = []
+    
+    if user_description:
+        user_prompt_parts.append(f"User description:\n{user_description.strip()}")
+    
+    user_prompt_parts.append(f"Source code to test:\n```python\n{source_code.strip()}\n```")
+    
+    if existing_test_code:
+        user_prompt_parts.append(
+            f"Existing test code (for context):\n```python\n{existing_test_code.strip()}\n```"
         )
-
-    metadata_text = "\n".join(meta_lines) if meta_lines else "None provided."
-    config_text = "\n".join(config_lines) if config_lines else "Defaults."
-
-    user_prompt = f"""
-User description:
-{description.strip() or 'No description provided.'}
-
-Code under test (python):
-```python
-{code.strip()}
-```
-
-Code metadata:
-{metadata_text}
-
-Generation preferences:
-{config_text}
-
+    
+    user_prompt_parts.append(f"Context:\n{context_text}")
+    
+    user_prompt_parts.append("""
 Requirements:
-- Produce ready-to-run pytest code.
-- Prefer parametrization where it improves clarity.
-- Cover edge cases, invalid inputs, and typical scenarios.
-- Return responses as Markdown with python code blocks.
-"""
+- Generate high-quality pytest tests
+- Cover edge cases, error handling, and typical scenarios
+- Include clear assertions
+- Return response with generated code in a Python code block
+- Provide brief explanation of what was generated
+""")
+    
+    user_prompt = "\n\n".join(user_prompt_parts)
 
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
