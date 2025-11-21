@@ -13,6 +13,11 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional, Union
 
+# Constants for coverage optimization fallback logic
+DEFAULT_TARGET_LINE_START = 50
+TARGET_LINE_SPACING = 10
+DEFAULT_FALLBACK_TARGET_LINE = 50
+
 import redis.asyncio as redis
 
 from app.config import settings
@@ -379,7 +384,6 @@ async def _generate_coverage_optimization_from_llm(
 
 def _parse_coverage_optimization_response(raw_response: str) -> Dict[str, Any]:
     """Parse LLM response to extract coverage optimization recommendations."""
-    import json
     import re
 
     # Try to extract JSON block first
@@ -393,13 +397,16 @@ def _parse_coverage_optimization_response(raw_response: str) -> Dict[str, Any]:
             if "recommended_tests" in data:
                 return data
         except json.JSONDecodeError:
+            # If JSON block parsing fails, try parsing the entire response as JSON below
             pass
+
+    # Direct JSON parsing (fallback if no code blocks or JSON block parsing failed)
     try:
-        # Try to parse entire response as JSON
         data = json.loads(raw_response.strip())
         if "recommended_tests" in data:
             return data
     except json.JSONDecodeError:
+        # Response is not valid JSON, will fall back to extracting code blocks below
         pass
 
     # Fallback: Try to extract Python code blocks and build recommendations
@@ -409,7 +416,9 @@ def _parse_coverage_optimization_response(raw_response: str) -> Dict[str, Any]:
     recommended_tests = []
     for i, code in enumerate(code_blocks):
         # Generate a reasonable target line and description
-        target_line = 50 + (i * 10)  # Placeholder logic
+        target_line = DEFAULT_TARGET_LINE_START + (
+            i * TARGET_LINE_SPACING
+        )  # Placeholder logic
         scenario_description = f"Test case {i + 1} to cover uncovered code"
         expected_coverage_impact = "Covers previously uncovered lines"
 
@@ -427,7 +436,7 @@ def _parse_coverage_optimization_response(raw_response: str) -> Dict[str, Any]:
         recommended_tests.append(
             {
                 "test_code": raw_response.strip(),
-                "target_line": 50,
+                "target_line": DEFAULT_FALLBACK_TARGET_LINE,
                 "scenario_description": "Generated test based on coverage analysis",
                 "expected_coverage_impact": "Improves overall coverage",
             }
