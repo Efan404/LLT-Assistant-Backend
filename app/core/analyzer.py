@@ -285,6 +285,8 @@ class ImpactAnalyzer:
             List of ImpactItem with impact assessments
         """
         impacted_tests = []
+        # Use a set for O(1) lookup to avoid O(n^2) complexity
+        processed_test_paths = set()
 
         # Simple heuristics:
         # 1. If a test file is in the changed files, it's definitely impacted
@@ -299,22 +301,28 @@ class ImpactAnalyzer:
             changed_name = changed_path.split("/")[-1].split(".")[0]
 
             # If this is a test file, mark it as impacted
-            if "test" in changed_path.lower() or changed_path.endswith(
-                ("_test.py", "test_*.py")
-            ):
-                impacted_tests.append(
-                    ImpactItem(
-                        test_path=changed_path,
-                        impact_score=1.0,
-                        severity="high",
-                        reasons=["Test file was directly modified"],
-                    )
+            if "test" in changed_path.lower() or changed_path.endswith(("_test.py",)):
+                # Also check for test_*.py pattern using startswith
+                test_file_pattern = (
+                    changed_path.lower().endswith(("_test.py",))
+                    or changed_path.lower().startswith("test_")
+                    or "_test" in changed_path.lower()
                 )
-                continue
+                if test_file_pattern or "test" in changed_path.lower():
+                    impacted_tests.append(
+                        ImpactItem(
+                            test_path=changed_path,
+                            impact_score=1.0,
+                            severity="high",
+                            reasons=["Test file was directly modified"],
+                        )
+                    )
+                    processed_test_paths.add(changed_path)
+                    continue
 
             # Look for potentially related test files
             for test_path in all_test_candidates:
-                if test_path not in [it.test_path for it in impacted_tests]:
+                if test_path not in processed_test_paths:
                     test_name = test_path.split("/")[-1].split(".")[0]
 
                     # Check for naming patterns (e.g., module.py -> test_module.py)
@@ -333,6 +341,9 @@ class ImpactAnalyzer:
                                 ],
                             )
                         )
+                        processed_test_paths.add(test_path)
+                        # Add break to prevent checking this test file again on next iteration
+                        break
                     elif (
                         changed_name.replace("_", "").lower()
                         in test_name.replace("_", "").lower()
@@ -347,10 +358,13 @@ class ImpactAnalyzer:
                                 ],
                             )
                         )
+                        processed_test_paths.add(test_path)
+                        # Add break to prevent duplicate entries
+                        break
 
         # Add any remaining related tests with low impact
         for test_path in related_tests:
-            if test_path not in [it.test_path for it in impacted_tests]:
+            if test_path not in processed_test_paths:
                 impacted_tests.append(
                     ImpactItem(
                         test_path=test_path,
@@ -359,6 +373,7 @@ class ImpactAnalyzer:
                         reasons=["Test file in related tests but no clear connection"],
                     )
                 )
+                processed_test_paths.add(test_path)
 
         return impacted_tests
 
@@ -387,8 +402,6 @@ class ImpactAnalyzer:
         elif high_impact_tests or len(medium_impact_tests) > 3:
             # Some high impact or many medium impact -> medium severity
             return "medium", "run-affected-tests"
-        elif impacted_tests:
+        else:
             # Only low impact tests -> low severity
             return "low", "run-affected-tests"
-        else:
-            return "none", "no-action"

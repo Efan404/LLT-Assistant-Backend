@@ -6,7 +6,6 @@ including success paths and error handling.
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.api.v1.schemas import ImpactAnalysisResponse, ImpactItem
