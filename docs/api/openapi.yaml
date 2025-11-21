@@ -2,55 +2,49 @@ openapi: 3.0.3
 info:
   title: LLT Assistant API
   description: |
-    Comprehensive Low-Level Test (LLT) Assistant API for VSCode extension.
+    **Unified API Specification for LLT Assistant VSCode Extension.**
     
-    **Core Features:**
-    1. **Test Generation** - Generate pytest test cases from minimal user input
-    2. **Coverage Optimization** - Analyze and improve test coverage
-    3. **Dynamic Maintenance** - Detect code changes and update tests accordingly
-    4. **Quality Analysis** - Detect defects and redundancies in existing tests
+    **Core Philosophy: Frontend-First & Leaky Abstraction Avoidance**
+    - The Backend provides business capabilities, not atomic code operations.
+    - The Frontend handles local context (Git diffs, XML parsing, File reading).
+    - Async workflows are used for heavy LLM operations.
     
-    **Design Principles:**
-    - Atomic operations are reusable across workflows
-    - Business workflows orchestrate atomic operations
-    - All code submissions use standardized formats
-    - Async task pattern for long-running operations
-  version: 1.0.0
+    **Feature Map:**
+    - **Feature 1 (Test Generation):** `/workflows/generate-tests` (Async)
+    - **Feature 2 (Coverage Optimization):** `/optimization/coverage` (Async)
+    - **Feature 3 (Impact Analysis):** `/analysis/impact` (Sync/Fast)
+    - **Feature 4 (Quality Analysis):** `/quality/analyze` (Sync/Batch)
+  version: 1.1.0
   contact:
-    name: LLT Assistant Team
+    name: LLT Assistant Technical Team
 
 servers:
-  - url: http://localhost:8886/api/v1
+  - url: http://localhost:8000/api/v1
     description: Local development server
-  - url: https://llt-assistant.fly.dev/api/v1
+  - url: https://api.llt-assistant.com/v1
     description: Production server
 
 tags:
   - name: System
-    description: Health checks and system metadata
-  - name: Code Analysis
-    description: Atomic operations for code analysis
-  - name: Test Operations
-    description: Atomic operations for test execution and validation
-  - name: Feature 1 - Test Generation
-    description: Generate tests from user descriptions
-  - name: Feature 2 - Coverage Optimization
-    description: Analyze and improve test coverage
-  - name: Feature 3 - Dynamic Maintenance
-    description: Monitor code changes and maintain tests
-  - name: Feature 4 - Quality Analysis
-    description: Detect test defects and redundancies
+    description: Health and System status
+  - name: Feature 1 - Generation
+    description: Generate new tests from scratch or descriptions
+  - name: Feature 2 - Coverage
+    description: Analyze gaps and generate supplementary tests
+  - name: Feature 3 - Impact
+    description: Analyze code changes to find affected tests
+  - name: Feature 4 - Quality
+    description: Linting and quality analysis with auto-fixes
   - name: Tasks
-    description: Async task management
+    description: Polling for async workflows
 
-# ============================================================================
-# SYSTEM ENDPOINTS
-# ============================================================================
 paths:
+  # ============================================================================
+  # SYSTEM
+  # ============================================================================
   /health:
     get:
-      summary: Health check
-      description: Check if the API service is running
+      summary: System Health Check
       tags:
         - System
       responses:
@@ -63,165 +57,23 @@ paths:
                 properties:
                   status:
                     type: string
-                    enum: [healthy]
+                    enum: [healthy, degraded]
                   version:
                     type: string
-                    example: "1.0.0"
-                  timestamp:
-                    type: string
-                    format: date-time
 
-  /rules:
-    get:
-      summary: Get available detection rules
-      description: Returns metadata about all available quality analysis rules
-      tags:
-        - System
-      responses:
-        '200':
-          description: List of available rules
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  rules:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/RuleMetadata'
-
-# ============================================================================
-# ATOMIC OPERATIONS - Code Analysis
-# ============================================================================
-  /code/analyze:
-    post:
-      summary: Analyze Python code structure
-      description: |
-        Extract structured information from Python source code including:
-        - Function signatures and parameters
-        - Control flow branches
-        - Exception handling
-        - External dependencies
-        
-        This is a reusable operation used by multiple workflows.
-      tags:
-        - Code Analysis
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CodeAnalysisRequest'
-      responses:
-        '200':
-          description: Analysis completed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CodeAnalysisResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '422':
-          $ref: '#/components/responses/ValidationError'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /code/diff:
-    post:
-      summary: Analyze code differences
-      description: |
-        Compare two versions of code and identify:
-        - Changed lines and functions
-        - Impacted test cases
-        - Severity of changes
-        
-        Used by Feature 3 (Dynamic Maintenance) and other workflows.
-      tags:
-        - Code Analysis
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CodeDiffRequest'
-      responses:
-        '200':
-          description: Diff analysis completed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CodeDiffResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
-# ============================================================================
-# ATOMIC OPERATIONS - Test Operations
-# ============================================================================
-  /tests/execute:
-    post:
-      summary: Execute test code
-      description: |
-        Run pytest tests and return execution results.
-        Used for validation in multiple workflows.
-      tags:
-        - Test Operations
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TestExecutionRequest'
-      responses:
-        '200':
-          description: Test execution completed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TestExecutionResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
-  /tests/validate:
-    post:
-      summary: Validate test quality
-      description: |
-        Quick validation of test code without full execution.
-        Checks syntax, imports, and basic structure.
-      tags:
-        - Test Operations
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CodeSubmission'
-      responses:
-        '200':
-          description: Validation completed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationResponse'
-
-# ============================================================================
-# FEATURE 1: Test Generation Workflow
-# ============================================================================
+  # ============================================================================
+  # FEATURE 1: Test Generation (Preserved)
+  # ============================================================================
   /workflows/generate-tests:
     post:
-      summary: "Feature 1: Submit generation request"
+      summary: Generate tests (Async)
       description: |
-        **Feature 1**
-        
-        Submit source code plus a short natural-language description to kick off
-        the end-to-end test generation workflow. The backend performs scenario
-        discovery and code generation asynchronously. The response only contains
-        a `task_id` so the client can poll `/tasks/{task_id}` for progress and
-        retrieve the generated tests when ready.
-        
-        **Input:** Python source code + ≤200 character description
-        **Output:** Async task metadata
+        Triggers the test generation workflow.
+        Used for:
+        1. New test generation (Feature 1).
+        2. Regenerating broken tests detected by Impact Analysis (Feature 3).
       tags:
-        - Feature 1 - Test Generation
+        - Feature 1 - Generation
       requestBody:
         required: true
         content:
@@ -230,279 +82,105 @@ paths:
               $ref: '#/components/schemas/GenerateTestsRequest'
       responses:
         '202':
-          description: Generation started
+          description: Task accepted
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenerateTestsResponse'
+                $ref: '#/components/schemas/AsyncJobResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '422':
-          $ref: '#/components/responses/ValidationError'
 
-# ============================================================================
-# FEATURE 2: Coverage Optimization Workflow
-# ============================================================================
-  /workflows/optimize-coverage:
+  # ============================================================================
+  # FEATURE 2: Coverage Optimization (Optimized)
+  # ============================================================================
+  /optimization/coverage:
     post:
-      summary: Start coverage optimization analysis
+      summary: Optimize coverage (Async)
       description: |
-        **Feature 2: Coverage Optimization**
-        
-        Analyzes existing test coverage and generates targeted test cases
-        to improve coverage. This is an async operation.
-        
-        **Process:**
-        1. Submit code + existing tests
-        2. Receive task_id
-        3. Poll for results or use webhook
-        
-        **Target:** Significant coverage improvement (typically >10% increase)
+        Frontend parses `coverage.xml` locally and sends uncovered ranges.
+        Backend generates targeted test cases to fill these gaps.
       tags:
-        - Feature 2 - Coverage Optimization
+        - Feature 2 - Coverage
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/OptimizeCoverageRequest'
+              $ref: '#/components/schemas/CoverageOptimizationRequest'
       responses:
         '202':
-          description: Analysis started (async)
+          description: Optimization task started
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  task_id:
-                    type: string
-                    format: uuid
-                  status:
-                    type: string
-                    enum: [processing]
-                  estimated_duration_seconds:
-                    type: integer
+                $ref: '#/components/schemas/AsyncJobResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /workflows/coverage-report/{task_id}:
-    get:
-      summary: Get coverage optimization report
-      description: |
-        Retrieve the coverage optimization results in various formats:
-        - `cli`: Command-line friendly text output
-        - `interactive`: Rich JSON for UI rendering
-        - `json`: Raw structured data
-      tags:
-        - Feature 2 - Coverage Optimization
-      parameters:
-        - name: task_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: format
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [cli, interactive, json]
-            default: interactive
-      responses:
-        '200':
-          description: Report ready
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CoverageReportResponse'
-        '202':
-          description: Still processing
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    enum: [processing]
-                  progress:
-                    type: number
-                    minimum: 0
-                    maximum: 1
-        '404':
-          description: Task not found
-
-# ============================================================================
-# FEATURE 3: Dynamic Maintenance Workflow
-# ============================================================================
-  /workflows/detect-code-changes:
+  # ============================================================================
+  # FEATURE 3: Impact Analysis (Optimized)
+  # ============================================================================
+  /analysis/impact:
     post:
-      summary: Detect code changes and impacted tests
+      summary: Analyze Test Impact
       description: |
-        **Feature 3: Dynamic Maintenance - Detection**
+        **Read-Only Analysis.**
+        Frontend provides file changes (Git diffs) and relevant test file contents.
+        Backend determines which tests are impacted and why.
         
-        Monitors code changes (typically from git commit) and identifies:
-        - Which functions changed
-        - Which tests are affected
-        - Whether functionality changed
-        
-        **Triggers:**
-        - Git commit hooks
-        - Manual file comparison
+        *Note: To fix/regenerate tests, use `/workflows/generate-tests`.*
       tags:
-        - Feature 3 - Dynamic Maintenance
+        - Feature 3 - Impact
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DetectCodeChangesRequest'
-      responses:
-        '200':
-          description: Changes detected
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DetectCodeChangesResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
-  /workflows/handle-code-changes:
-    post:
-      summary: Handle detected code changes
-      description: |
-        **Feature 3: Dynamic Maintenance - Action**
-        
-        After user confirms whether functionality changed:
-        - If YES → Trigger Feature 1 (regenerate tests)
-        - If NO → Trigger Feature 2 (improve coverage)
-        
-        Uses context from previous detection step.
-      tags:
-        - Feature 3 - Dynamic Maintenance
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HandleCodeChangesRequest'
-      responses:
-        '200':
-          description: Action initiated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HandleCodeChangesResponse'
-        '404':
-          description: Context not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-# ============================================================================
-# FEATURE 4: Quality Analysis Workflow
-# ============================================================================
-  /workflows/analyze-quality:
-    post:
-      summary: Analyze test quality (defects & redundancies)
-      description: |
-        **Feature 4: Quality Analysis**
-        
-        Comprehensive quality analysis using:
-        - Rule-based detection (fast, deterministic)
-        - LLM-based analysis (semantic understanding)
-        - Hybrid mode (recommended)
-        
-        **Detects:**
-        - Missing assertions
-        - Duplicate assertions
-        - Unused fixtures
-        - Redundant tests
-        - Naming issues
-      tags:
-        - Feature 4 - Quality Analysis
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AnalyzeQualityRequest'
+              $ref: '#/components/schemas/ImpactAnalysisRequest'
       responses:
         '200':
           description: Analysis completed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AnalyzeQualityResponse'
+                $ref: '#/components/schemas/ImpactAnalysisResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '413':
-          description: Payload too large
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
-  /workflows/quality-history/{test_id}:
-    get:
-      summary: Get quality analysis history
-      description: |
-        **Feature 4: Version History**
-        
-        Retrieve historical versions of a test file for:
-        - Rollback capabilities
-        - Change tracking
-        - Quality trend analysis
-      tags:
-        - Feature 4 - Quality Analysis
-      parameters:
-        - name: test_id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: History retrieved
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/QualityHistoryResponse'
-
-  /workflows/quality-rollback:
+  # ============================================================================
+  # FEATURE 4: Quality Analysis (Optimized)
+  # ============================================================================
+  /quality/analyze:
     post:
-      summary: Rollback to previous test version
+      summary: Batch Quality Analysis
       description: |
-        **Feature 4: Version Rollback**
-        
-        Restore a test file to a previous quality-checked version.
+        Analyzes multiple files for defects and redundancies.
+        Returns issues with **embedded fix suggestions** for zero-latency UI interactions.
       tags:
-        - Feature 4 - Quality Analysis
+        - Feature 4 - Quality
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/QualityRollbackRequest'
+              $ref: '#/components/schemas/QualityAnalysisRequest'
       responses:
         '200':
-          description: Rollback successful
+          description: Analysis completed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/QualityRollbackResponse'
+                $ref: '#/components/schemas/QualityAnalysisResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
-# ============================================================================
-# TASK MANAGEMENT
-# ============================================================================
+  # ============================================================================
+  # SHARED TASK POLLING
+  # ============================================================================
   /tasks/{task_id}:
     get:
-      summary: Get task status
-      description: |
-        Poll for async task status and results.
-        Used for long-running operations like coverage optimization.
+      summary: Poll Async Task Status
+      description: Retrieve status and results for Feature 1 and Feature 2 workflows.
       tags:
         - Tasks
       parameters:
@@ -514,11 +192,11 @@ paths:
             format: uuid
       responses:
         '200':
-          description: Task found
+          description: Task status or result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskStatus'
+                $ref: '#/components/schemas/TaskStatusResponse'
         '404':
           description: Task not found
 
@@ -527,496 +205,10 @@ paths:
 # ============================================================================
 components:
   schemas:
-    # ========================================================================
-    # SHARED/ATOMIC SCHEMAS
-    # ========================================================================
-    CodeSubmission:
-      type: object
-      description: Standard format for submitting code to any endpoint
-      required:
-        - code
-        - language
-        - framework
-      properties:
-        code:
-          type: string
-          description: Source code content
-        language:
-          type: string
-          enum: [python]
-          default: python
-        framework:
-          type: string
-          enum: [pytest, unittest]
-          default: pytest
-        metadata:
-          type: object
-          properties:
-            file_path:
-              type: string
-            module_path:
-              type: string
-            git_context:
-              type: object
-              properties:
-                commit_hash:
-                  type: string
-                branch:
-                  type: string
-
-    FunctionContext:
-      type: object
-      description: Structured analysis of a Python function
-      required:
-        - signature
-        - source_code
-        - body_analysis
-        - imports
-        - documentation
-        - file_path
-        - module_path
-        - line_range
-      properties:
-        signature:
-          $ref: '#/components/schemas/FunctionSignature'
-        source_code:
-          type: string
-        body_analysis:
-          $ref: '#/components/schemas/FunctionBodyAnalysis'
-        class_context:
-          $ref: '#/components/schemas/ClassContext'
-        imports:
-          type: array
-          items:
-            $ref: '#/components/schemas/ImportInfo'
-        documentation:
-          $ref: '#/components/schemas/DocumentationInfo'
-        file_path:
-          type: string
-        module_path:
-          type: string
-        line_range:
-          type: array
-          items:
-            type: integer
-          minItems: 2
-          maxItems: 2
-
-    FunctionSignature:
-      type: object
-      required:
-        - name
-        - parameters
-        - is_async
-        - is_method
-        - decorators
-      properties:
-        name:
-          type: string
-        parameters:
-          type: array
-          items:
-            $ref: '#/components/schemas/Parameter'
-        return_type:
-          type: string
-          nullable: true
-        is_async:
-          type: boolean
-        is_method:
-          type: boolean
-        decorators:
-          type: array
-          items:
-            type: string
-
-    Parameter:
-      type: object
-      required:
-        - name
-        - kind
-      properties:
-        name:
-          type: string
-        type:
-          type: string
-          nullable: true
-        default_value:
-          type: string
-          nullable: true
-        kind:
-          type: string
-          enum: [positional, keyword, var_positional, var_keyword]
-
-    FunctionBodyAnalysis:
-      type: object
-      required:
-        - branches
-        - exceptions
-        - external_calls
-        - complexity
-      properties:
-        branches:
-          type: array
-          items:
-            $ref: '#/components/schemas/BranchInfo'
-        exceptions:
-          type: array
-          items:
-            $ref: '#/components/schemas/ExceptionInfo'
-        external_calls:
-          type: array
-          items:
-            $ref: '#/components/schemas/CallInfo'
-        complexity:
-          type: integer
-
-    BranchInfo:
-      type: object
-      required:
-        - type
-        - condition
-        - line_number
-      properties:
-        type:
-          type: string
-          enum: [if, elif, else, match]
-        condition:
-          type: string
-        line_number:
-          type: integer
-
-    ExceptionInfo:
-      type: object
-      required:
-        - type
-        - line_number
-        - context
-      properties:
-        type:
-          type: string
-          enum: [raise, try-except]
-        exception_class:
-          type: string
-          nullable: true
-        line_number:
-          type: integer
-        context:
-          type: string
-
-    CallInfo:
-      type: object
-      required:
-        - function_name
-        - line_number
-        - is_builtin
-      properties:
-        function_name:
-          type: string
-        module:
-          type: string
-          nullable: true
-        line_number:
-          type: integer
-        is_builtin:
-          type: boolean
-
-    ClassContext:
-      type: object
-      properties:
-        class_name:
-          type: string
-        base_classes:
-          type: array
-          items:
-            type: string
-        class_attributes:
-          type: array
-          items:
-            type: string
-        other_methods:
-          type: array
-          items:
-            type: string
-        is_dataclass:
-          type: boolean
-
-    ImportInfo:
-      type: object
-      required:
-        - module
-        - imported_names
-        - line_number
-      properties:
-        module:
-          type: string
-        imported_names:
-          type: array
-          items:
-            type: string
-        alias:
-          type: string
-          nullable: true
-        line_number:
-          type: integer
-
-    DocumentationInfo:
-      type: object
-      required:
-        - inline_comments
-      properties:
-        docstring:
-          type: string
-          nullable: true
-        inline_comments:
-          type: array
-          items:
-            $ref: '#/components/schemas/Comment'
-
-    Comment:
-      type: object
-      required:
-        - text
-        - line_number
-        - is_block_comment
-      properties:
-        text:
-          type: string
-        line_number:
-          type: integer
-        is_block_comment:
-          type: boolean
-
-    TokenUsage:
-      type: object
-      properties:
-        prompt_tokens:
-          type: integer
-        completion_tokens:
-          type: integer
-        total_tokens:
-          type: integer
-        estimated_cost_usd:
-          type: number
-          format: float
-
-    ClientMetadata:
-      type: object
-      description: VSCode extension metadata
-      properties:
-        extension_version:
-          type: string
-        vscode_version:
-          type: string
-        platform:
-          type: string
-        workspace_hash:
-          type: string
-
-    # ========================================================================
-    # ATOMIC OPERATION REQUESTS/RESPONSES
-    # ========================================================================
-    CodeAnalysisRequest:
-      allOf:
-        - $ref: '#/components/schemas/CodeSubmission'
-        - type: object
-          properties:
-            function_name:
-              type: string
-              description: Specific function to analyze (optional)
-            analysis_depth:
-              type: string
-              enum: [basic, detailed]
-              default: detailed
-
-    CodeAnalysisResponse:
-      type: object
-      required:
-        - function_context
-        - elapsed_ms
-      properties:
-        function_context:
-          $ref: '#/components/schemas/FunctionContext'
-        analysis_warnings:
-          type: array
-          items:
-            type: string
-        elapsed_ms:
-          type: integer
-        request_id:
-          type: string
-
-    CodeDiffRequest:
-      type: object
-      required:
-        - old_code
-        - new_code
-      properties:
-        old_code:
-          type: string
-        new_code:
-          type: string
-        context:
-          type: string
-          enum: [git_commit, manual, file_save]
-          default: git_commit
-        git_diff:
-          type: string
-          description: Optional git diff output
-
-    CodeDiffResponse:
-      type: object
-      required:
-        - changed_functions
-        - change_summary
-        - severity
-      properties:
-        changed_functions:
-          type: array
-          items:
-            type: object
-            properties:
-              function_name:
-                type: string
-              change_type:
-                type: string
-                enum: [added, modified, deleted]
-              line_changes:
-                type: object
-                properties:
-                  added:
-                    type: integer
-                  removed:
-                    type: integer
-        change_summary:
-          type: string
-        severity:
-          type: string
-          enum: [minor, moderate, major]
-        git_metadata:
-          type: object
-          properties:
-            commit_hash:
-              type: string
-            author:
-              type: string
-            timestamp:
-              type: string
-              format: date-time
-
-    TestExecutionRequest:
-      type: object
-      required:
-        - test_code
-        - source_code
-      properties:
-        test_code:
-          type: string
-        source_code:
-          type: string
-        framework:
-          type: string
-          enum: [pytest, unittest]
-          default: pytest
-        timeout_seconds:
-          type: integer
-          default: 30
-
-    TestExecutionResponse:
-      type: object
-      required:
-        - success
-        - results
-      properties:
-        success:
-          type: boolean
-        results:
-          type: object
-          properties:
-            passed:
-              type: integer
-            failed:
-              type: integer
-            errors:
-              type: integer
-            skipped:
-              type: integer
-        failures:
-          type: array
-          items:
-            type: object
-            properties:
-              test_name:
-                type: string
-              error_message:
-                type: string
-              traceback:
-                type: string
-        coverage:
-          type: object
-          properties:
-            line_coverage:
-              type: number
-              format: float
-            branch_coverage:
-              type: number
-              format: float
-        execution_time_ms:
-          type: integer
-
-    ValidationResponse:
-      type: object
-      required:
-        - valid
-      properties:
-        valid:
-          type: boolean
-        errors:
-          type: array
-          items:
-            type: object
-            properties:
-              type:
-                type: string
-                enum: [syntax, import, structure]
-              message:
-                type: string
-              line:
-                type: integer
-
-    # ========================================================================
-    # FEATURE 1: Test Generation Schemas
-    # ========================================================================
-    GenerateTestsRequest:
-      type: object
-      required:
-        - code_submission
-        - user_description
-      properties:
-        code_submission:
-          $ref: '#/components/schemas/CodeSubmission'
-        user_description:
-          type: string
-          minLength: 1
-          maxLength: 200
-          description: Natural language description of the tests to generate
-        config:
-          type: object
-          properties:
-            auto_review_before_return:
-              type: boolean
-              default: true
-            max_test_count:
-              type: integer
-              minimum: 1
-              maximum: 20
-              default: 8
-            preferred_style:
-              type: string
-              enum: [pytest_parametrize, pytest_plain, unittest]
-        client_metadata:
-          $ref: '#/components/schemas/ClientMetadata'
-
-    GenerateTestsResponse:
+    # ----------------------------------------
+    # Shared Schemas
+    # ----------------------------------------
+    AsyncJobResponse:
       type: object
       required:
         - task_id
@@ -1025,495 +217,13 @@ components:
         task_id:
           type: string
           format: uuid
-          description: Async task identifier for `/tasks/{task_id}`
         status:
           type: string
           enum: [pending, processing]
-          description: Initial task status
-        request_id:
-          type: string
-          description: Server-side identifier for tracing
-
-    # ========================================================================
-    # FEATURE 2: Coverage Optimization Schemas
-    # ========================================================================
-    OptimizeCoverageRequest:
-      type: object
-      required:
-        - source_code
-        - existing_tests
-      properties:
-        source_code:
-          type: string
-          description: Source code to analyze coverage for
-        existing_tests:
-          type: string
-          description: Current test suite
-        framework:
-          type: string
-          enum: [pytest, unittest]
-          default: pytest
-        target_coverage:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
-          default: 0.8
-          description: Target coverage percentage (0-1)
-        focus_areas:
-          type: array
-          items:
-            type: string
-            enum: [branches, exceptions, edge_cases, error_paths]
-        client_metadata:
-          $ref: '#/components/schemas/ClientMetadata'
-
-    CoverageReportResponse:
-      type: object
-      required:
-        - status
-        - analysis_id
-      properties:
-        status:
-          type: string
-          enum: [completed, processing, failed]
-        analysis_id:
-          type: string
-          format: uuid
-        current_coverage:
-          type: object
-          properties:
-            line_coverage:
-              type: number
-              format: float
-            branch_coverage:
-              type: number
-              format: float
-            uncovered_lines:
-              type: array
-              items:
-                type: integer
-            uncovered_branches:
-              type: array
-              items:
-                type: object
-                properties:
-                  line:
-                    type: integer
-                  condition:
-                    type: string
-        recommended_tests:
-          type: array
-          items:
-            type: object
-            properties:
-              scenario:
-                type: string
-              test_code:
-                type: string
-              expected_coverage_increase:
-                type: number
-                format: float
-              priority:
-                type: string
-                enum: [high, medium, low]
-        coverage_improvement_summary:
-          type: object
-          properties:
-            before:
-              type: number
-              format: float
-            after:
-              type: number
-              format: float
-            increase:
-              type: number
-              format: float
-        visualization_data:
-          type: object
-          description: Data for rendering coverage visualization
-          properties:
-            format:
-              type: string
-              enum: [cli, interactive]
-            content:
-              type: object
-        token_usage:
-          $ref: '#/components/schemas/TokenUsage'
-        analysis_time_ms:
+        estimated_time_seconds:
           type: integer
-
-    # ========================================================================
-    # FEATURE 3: Dynamic Maintenance Schemas
-    # ========================================================================
-    DetectCodeChangesRequest:
-      type: object
-      required:
-        - changes
-      properties:
-        changes:
-          type: object
-          description: Code changes to analyze
-          oneOf:
-            - type: object
-              required:
-                - git_diff
-              properties:
-                git_diff:
-                  type: string
-                  description: Git diff output
-                commit_metadata:
-                  type: object
-                  properties:
-                    hash:
-                      type: string
-                    message:
-                      type: string
-                    author:
-                      type: string
-            - type: object
-              required:
-                - old_code
-                - new_code
-              properties:
-                old_code:
-                  type: string
-                new_code:
-                  type: string
-                file_path:
-                  type: string
-        previous_tests:
-          type: string
-          description: Current test suite to check for impacts
-        client_metadata:
-          $ref: '#/components/schemas/ClientMetadata'
-
-    DetectCodeChangesResponse:
-      type: object
-      required:
-        - context_id
-        - affected_tests
-        - change_summary
-        - action_required
-      properties:
-        context_id:
-          type: string
-          description: ID for continuing this workflow in next step
-        affected_tests:
-          type: array
-          items:
-            type: object
-            properties:
-              test_name:
-                type: string
-              impact_level:
-                type: string
-                enum: [critical, high, medium, low]
-              reason:
-                type: string
-              requires_update:
-                type: boolean
-        change_summary:
-          type: object
-          properties:
-            functions_changed:
-              type: array
-              items:
-                type: string
-            lines_added:
-              type: integer
-            lines_removed:
-              type: integer
-            change_type:
-              type: string
-              enum: [refactor, feature_addition, bug_fix, breaking_change]
-        action_required:
-          type: string
-          enum: [regenerate, optimize_coverage, no_action]
-          description: Recommended next action
-        diff_visualization:
-          type: object
-          properties:
-            before:
-              type: string
-            after:
-              type: string
-            highlighted_changes:
-              type: array
-              items:
-                type: object
-        request_id:
-          type: string
-
-    HandleCodeChangesRequest:
-      type: object
-      required:
-        - context_id
-        - functionality_changed
-        - action
-      properties:
-        context_id:
-          type: string
-          description: ID from DetectCodeChangesResponse
-        functionality_changed:
-          type: boolean
-          description: User confirmation of functionality change
-        action:
-          type: string
-          enum: [regenerate, improve_coverage]
-          description: |
-            - regenerate: Trigger Feature 1 (test generation)
-            - improve_coverage: Trigger Feature 2 (coverage optimization)
-        new_description:
-          type: string
-          description: Required if functionality_changed=true
-        client_metadata:
-          $ref: '#/components/schemas/ClientMetadata'
-
-    HandleCodeChangesResponse:
-      type: object
-      required:
-        - action_taken
-        - workflow_initiated
-      properties:
-        action_taken:
-          type: string
-          enum: [regenerate, improve_coverage]
-        workflow_initiated:
-          type: string
-          description: Workflow ID for tracking
-        next_steps:
-          type: string
-          description: What user should expect next
-        redirect_to:
-          type: object
-          description: Which workflow endpoint to poll/use next
-          properties:
-            endpoint:
-              type: string
-            request_id:
-              type: string
-
-    # ========================================================================
-    # FEATURE 4: Quality Analysis Schemas
-    # ========================================================================
-    AnalyzeQualityRequest:
-      type: object
-      required:
-        - files
-      properties:
-        files:
-          type: array
-          minItems: 1
-          maxItems: 50
-          items:
-            type: object
-            required:
-              - path
-              - content
-            properties:
-              path:
-                type: string
-              content:
-                type: string
-              git_diff:
-                type: string
-                nullable: true
-        mode:
-          type: string
-          enum: [rules-only, llm-only, hybrid]
-          default: hybrid
-          description: |
-            - rules-only: Fast deterministic detection
-            - llm-only: Semantic AI analysis
-            - hybrid: Best of both (recommended)
-        config:
-          type: object
-          properties:
-            disabled_rules:
-              type: array
-              items:
-                type: string
-              description: Rule IDs to skip
-            focus_on_changed_lines:
-              type: boolean
-              default: false
-            llm_temperature:
-              type: number
-              minimum: 0
-              maximum: 1
-              default: 0.3
-        client_metadata:
-          $ref: '#/components/schemas/ClientMetadata'
-
-    AnalyzeQualityResponse:
-      type: object
-      required:
-        - analysis_id
-        - issues
-        - metrics
-      properties:
-        analysis_id:
-          type: string
-          format: uuid
-        issues:
-          type: array
-          items:
-            $ref: '#/components/schemas/QualityIssue'
-        metrics:
-          type: object
-          required:
-            - total_tests
-            - issues_count
-            - analysis_time_ms
-            - rules_applied
-          properties:
-            total_tests:
-              type: integer
-            issues_count:
-              type: integer
-            analysis_time_ms:
-              type: integer
-            rules_applied:
-              type: array
-              items:
-                type: string
-            severity_breakdown:
-              type: object
-              properties:
-                error:
-                  type: integer
-                warning:
-                  type: integer
-                info:
-                  type: integer
-        version_id:
-          type: string
-          description: ID for rollback feature
-
-    QualityIssue:
-      type: object
-      required:
-        - file
-        - line
-        - column
-        - severity
-        - type
-        - message
-        - detected_by
-        - suggestion
-      properties:
-        file:
-          type: string
-        line:
-          type: integer
-          minimum: 1
-        column:
-          type: integer
-          minimum: 0
-        severity:
-          type: string
-          enum: [error, warning, info]
-        type:
-          type: string
-          enum:
-            - duplicate-assertion
-            - missing-assertion
-            - trivial-assertion
-            - vague-assertion
-            - unused-fixture
-            - unused-variable
-            - test-mergeability
-            - assertion-inadequate
-            - naming-unclear
-            - code-smell
-        message:
-          type: string
-        detected_by:
-          type: string
-          enum: [rule_engine, llm]
-        suggestion:
-          type: object
-          required:
-            - action
-            - explanation
-          properties:
-            action:
-              type: string
-              enum: [remove, replace, add]
-            old_code:
-              type: string
-              nullable: true
-            new_code:
-              type: string
-              nullable: true
-            explanation:
-              type: string
-
-    QualityHistoryResponse:
-      type: object
-      required:
-        - test_id
-        - versions
-      properties:
-        test_id:
-          type: string
-        versions:
-          type: array
-          items:
-            type: object
-            properties:
-              version_id:
-                type: string
-              timestamp:
-                type: string
-                format: date-time
-              analysis_summary:
-                type: object
-                properties:
-                  issues_count:
-                    type: integer
-                  quality_score:
-                    type: number
-                    format: float
-              code_snapshot:
-                type: string
-                description: Test code at this version
-
-    QualityRollbackRequest:
-      type: object
-      required:
-        - test_id
-        - target_version
-      properties:
-        test_id:
-          type: string
-        target_version:
-          type: string
-
-    QualityRollbackResponse:
-      type: object
-      required:
-        - success
-        - restored_code
-      properties:
-        success:
-          type: boolean
-        restored_code:
-          type: string
-        version_info:
-          type: object
-          properties:
-            version_id:
-              type: string
-            timestamp:
-              type: string
-              format: date-time
-
-    # ========================================================================
-    # TASK MANAGEMENT SCHEMAS
-    # ========================================================================
-    TaskStatus:
+    
+    TaskStatusResponse:
       type: object
       required:
         - task_id
@@ -1525,101 +235,288 @@ components:
         status:
           type: string
           enum: [pending, processing, completed, failed]
-        result:
-          type: object
-          description: Task result (when status=completed)
-        error:
-          type: object
-          description: Error details (when status=failed)
-          properties:
-            message:
-              type: string
-            details:
-              type: object
         created_at:
           type: string
           format: date-time
-        updated_at:
-          type: string
-          format: date-time
+        result:
+          type: object
+          description: |
+            - For Feature 1: See `GenerateTestsResult`
+            - For Feature 2: See `CoverageOptimizationResult`
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
 
-    # ========================================================================
-    # SYSTEM SCHEMAS
-    # ========================================================================
-    RuleMetadata:
+    # ----------------------------------------
+    # Feature 1 Schemas
+    # ----------------------------------------
+    GenerateTestsRequest:
       type: object
       required:
-        - rule_id
-        - severity
-        - description
-        - category
+        - source_code
       properties:
-        rule_id:
+        source_code:
           type: string
+          description: The Python source code to test.
+        user_description:
+          type: string
+          description: Optional hint or requirement from user.
+        existing_test_code:
+          type: string
+          description: Optional existing test code (context for regeneration).
+        context:
+          type: object
+          description: Extra context if triggered by Feature 3 (Regeneration).
+          properties:
+            mode:
+              type: string
+              enum: [new, regenerate]
+              default: new
+            target_function:
+              type: string
+
+    GenerateTestsResult:
+      type: object
+      properties:
+        generated_code:
+          type: string
+          description: The complete generated test file content.
+        explanation:
+          type: string
+
+    # ----------------------------------------
+    # Feature 2 Schemas (Optimized)
+    # ----------------------------------------
+    CoverageOptimizationRequest:
+      type: object
+      required:
+        - source_code
+        - uncovered_ranges
+      properties:
+        source_code:
+          type: string
+          description: Target source file content.
+        existing_test_code:
+          type: string
+          description: Current test file content.
+        uncovered_ranges:
+          type: array
+          description: Ranges parsed by Frontend from coverage.xml.
+          items:
+            type: object
+            properties:
+              start_line:
+                type: integer
+              end_line:
+                type: integer
+              type:
+                type: string
+                enum: [line, branch]
+        framework:
+          type: string
+          enum: [pytest, unittest]
+          default: pytest
+
+    CoverageOptimizationResult:
+      type: object
+      properties:
+        recommended_tests:
+          type: array
+          items:
+            type: object
+            properties:
+              test_code:
+                type: string
+                description: The code snippet for the new test case.
+              target_line:
+                type: integer
+                description: Recommended line number to insert the ghost text.
+              scenario_description:
+                type: string
+              expected_coverage_impact:
+                type: string
+                example: "Covers exception handling in calculate_tax"
+
+    # ----------------------------------------
+    # Feature 3 Schemas (Optimized)
+    # ----------------------------------------
+    ImpactAnalysisRequest:
+      type: object
+      required:
+        - project_context
+      properties:
+        project_context:
+          type: object
+          required:
+            - files_changed
+          properties:
+            files_changed:
+              type: array
+              items:
+                type: object
+                required:
+                  - path
+                  - diff_content
+                properties:
+                  path:
+                    type: string
+                    example: "src/utils.py"
+                  diff_content:
+                    type: string
+                    description: "Raw git diff string for this file."
+            related_tests:
+              type: array
+              description: |
+                Frontend uses static analysis (regex/AST) to guess which test files might be relevant 
+                and sends their content here for the LLM to confirm impact.
+              items:
+                type: object
+                required:
+                  - path
+                  - content
+                properties:
+                  path:
+                    type: string
+                  content:
+                    type: string
+
+    ImpactAnalysisResponse:
+      type: object
+      required:
+        - impacted_tests
+      properties:
+        impacted_tests:
+          type: array
+          items:
+            type: object
+            properties:
+              file_path:
+                type: string
+                description: Path to the test file.
+              test_case_name:
+                type: string
+                description: Name of the specific test function affected.
+              severity:
+                type: string
+                enum: [critical, high, medium, low]
+                description: Used for UI coloring (Red/Orange/Yellow).
+              reason:
+                type: string
+                description: Human-readable reason (e.g., "Function signature changed").
+        suggested_action:
+          type: string
+          enum: [none, regenerate]
+          description: Recommendation for the UI button state.
+
+    # ----------------------------------------
+    # Feature 4 Schemas (Optimized)
+    # ----------------------------------------
+    QualityAnalysisRequest:
+      type: object
+      required:
+        - files
+      properties:
+        files:
+          type: array
+          items:
+            type: object
+            required:
+              - path
+              - content
+            properties:
+              path:
+                type: string
+              content:
+                type: string
+        mode:
+          type: string
+          enum: [fast, deep, hybrid]
+          default: hybrid
+          description: |
+            fast: Rules only (e.g., On-Save).
+            deep: LLM only.
+            hybrid: Recommended default.
+
+    QualityAnalysisResponse:
+      type: object
+      required:
+        - issues
+        - summary
+      properties:
+        analysis_id:
+          type: string
+        summary:
+          type: object
+          properties:
+            total_files:
+              type: integer
+            total_issues:
+              type: integer
+            critical_issues:
+              type: integer
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/QualityIssue'
+
+    QualityIssue:
+      type: object
+      required:
+        - file_path
+        - line
+        - severity
+        - message
+        - code
+      properties:
+        file_path:
+          type: string
+        line:
+          type: integer
+          description: 1-based line number.
+        column:
+          type: integer
+          default: 0
         severity:
           type: string
           enum: [error, warning, info]
-        description:
+        code:
           type: string
-        category:
-          type: string
-          enum: [redundancy, defect]
-
-    ErrorResponse:
-      type: object
-      required:
-        - error
-        - message
-      properties:
-        error:
-          type: string
-          description: Error type identifier
+          example: "redundant-assertion"
         message:
           type: string
-          description: Human-readable error message
-        details:
-          type: object
-          nullable: true
-          additionalProperties: true
-        request_id:
+        detected_by:
           type: string
-          description: Request ID for debugging
+          enum: [rule, llm]
+        suggestion:
+          $ref: '#/components/schemas/FixSuggestion'
 
-  # ==========================================================================
-  # REUSABLE RESPONSES
-  # ==========================================================================
+    FixSuggestion:
+      type: object
+      nullable: true
+      properties:
+        type:
+          type: string
+          enum: [replace, delete, insert]
+        new_text:
+          type: string
+          description: The code to apply.
+        description:
+          type: string
+          description: 'Menu label (e.g., "Fix: Remove redundancy").'
+  
   responses:
     BadRequest:
-      description: Malformed request or missing required fields
+      description: Invalid request format or parameters.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            error: BadRequest
-            message: Missing required field 'code' in request body
-
-    ValidationError:
-      description: Input failed domain validation
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            error: ValidationError
-            message: User description must be between 1 and 200 characters
-            details:
-              field: user_description
-              constraint: maxLength(200)
-
-    InternalError:
-      description: Unexpected server error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            error: InternalServerError
-            message: An unexpected error occurred
-            details:
-              error_id: err_abc123
+            type: object
+            properties:
+              error:
+                type: string
+              details:
+                type: object
