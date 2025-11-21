@@ -16,10 +16,12 @@ from app.api.v1.schemas import (
     AnalyzeResponse,
     AsyncJobResponse,
     GenerateTestsRequest,
+    ImpactAnalysisRequest,
+    ImpactAnalysisResponse,
     TaskError,
     TaskStatusResponse,
 )
-from app.core.analyzer import TestAnalyzer
+from app.core.analyzer import ImpactAnalyzer, TestAnalyzer
 from app.core.constants import MAX_FILES_PER_REQUEST
 from app.core.llm_analyzer import LLMAnalyzer
 from app.core.llm_client import create_llm_client
@@ -59,6 +61,28 @@ def get_analyzer() -> TestAnalyzer:
         logger.error(f"Failed to initialize analyzer: {e}")
         raise HTTPException(
             status_code=503, detail=f"Failed to initialize analyzer: {str(e)}"
+        )
+
+
+def get_impact_analyzer() -> ImpactAnalyzer:
+    """
+    Dependency injection factory for ImpactAnalyzer.
+
+    Returns:
+        ImpactAnalyzer instance
+
+    Raises:
+        HTTPException: If analyzer initialization fails
+    """
+    try:
+        rule_engine = RuleEngine()
+        llm_client = create_llm_client()
+        llm_analyzer = LLMAnalyzer(llm_client)
+        return ImpactAnalyzer(rule_engine, llm_analyzer)
+    except Exception as e:
+        logger.error(f"Failed to initialize impact analyzer: {e}")
+        raise HTTPException(
+            status_code=503, detail=f"Failed to initialize impact analyzer: {str(e)}"
         )
 
 
@@ -251,3 +275,54 @@ async def get_task_status(task_id: str) -> TaskStatusResponse:
         error=error,
         created_at=task_data.get("created_at"),
     )
+
+
+@router.post("/analysis/impact", response_model=ImpactAnalysisResponse)
+async def analyze_impact(
+    request: ImpactAnalysisRequest,
+    impact_analyzer: ImpactAnalyzer = Depends(get_impact_analyzer),
+) -> ImpactAnalysisResponse:
+    """
+    Analyze the impact of file changes on test files.
+
+    This endpoint accepts project context (changed files and related tests)
+    and returns which tests may be impacted by the changes with severity assessment.
+
+    Args:
+        request: Impact analysis request containing project context
+        impact_analyzer: Injected ImpactAnalyzer instance
+
+    Returns:
+        Impact analysis response with impacted tests and suggested actions
+
+    Raises:
+        HTTPException: If analysis fails or request is invalid
+    """
+    try:
+        # Validate request
+        if not request.project_context.files_changed:
+            raise HTTPException(status_code=400, detail="files_changed cannot be empty")
+
+        # Extract data from request
+        files_changed = [
+            {"path": entry.path, "change_type": entry.change_type}
+            for entry in request.project_context.files_changed
+        ]
+        related_tests = request.project_context.related_tests
+
+        # Run impact analysis
+        result = impact_analyzer.analyze_impact(files_changed, related_tests)
+
+        return result
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Impact analysis failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Impact analysis failed due to internal error"
+        )
