@@ -11,7 +11,12 @@ import uuid
 from typing import Dict, List, Optional
 
 from app.analyzers.ast_parser import ParsedTestFile, parse_test_file
-from app.api.v1.schemas import AnalyzeResponse, FileInput
+from app.api.v1.schemas import (
+    AnalyzeResponse,
+    FileInput,
+    ImpactAnalysisResponse,
+    ImpactItem,
+)
 from app.core.issue_aggregator import IssueAggregator
 from app.core.metrics_calculator import MetricsCalculator
 from app.core.protocols import LLMAnalyzerProtocol, RuleEngineProtocol
@@ -180,3 +185,210 @@ class TestAnalyzer:
     async def close(self) -> None:
         """Close the analyzer and cleanup resources."""
         await self.llm_analyzer.close()
+
+
+class ImpactAnalyzer:
+    """Impact analysis analyzer for determining affected test files.
+
+    This analyzer takes project context (changed files and related tests)
+    and determines which tests may be impacted by the changes.
+    """
+
+    def __init__(
+        self,
+        rule_engine: RuleEngineProtocol,
+        llm_analyzer: LLMAnalyzerProtocol,
+    ):
+        """
+        Initialize the impact analyzer.
+
+        Args:
+            rule_engine: Rule-based analysis engine
+            llm_analyzer: LLM-based analyzer (for future enhancement)
+        """
+        self.rule_engine = rule_engine
+        self.llm_analyzer = llm_analyzer
+
+    def analyze_impact(
+        self, files_changed: List[Dict[str, str]], related_tests: List[str]
+    ) -> ImpactAnalysisResponse:
+        """
+        Analyze the impact of file changes on test files.
+
+        This method uses a combination of heuristics and rules to determine
+        which tests are impacted by the changes.
+
+        Args:
+            files_changed: List of dictionaries with 'path' and 'change_type'
+            related_tests: List of test file paths that may be related
+
+        Returns:
+            ImpactAnalysisResponse with impact assessment
+
+        Raises:
+            ValueError: If files_changed is empty
+        """
+        if not files_changed:
+            raise ValueError("files_changed cannot be empty")
+
+        # Basic validation
+        changed_paths = [f.get("path", "") for f in files_changed]
+        if not any(changed_paths):
+            raise ValueError("files_changed paths cannot be empty")
+
+        logger.info(
+            f"Analyzing impact for {len(files_changed)} changed files and "
+            f"{len(related_tests)} related tests"
+        )
+
+        try:
+            # For now, use simple heuristics. In the future, this could use:
+            # 1. Rule engine for pattern matching
+            # 2. LLM for semantic analysis
+            # 3. Import graph analysis
+            impacted_tests = self._calculate_impact_simple(changed_paths, related_tests)
+
+            # Determine overall severity and suggested action
+            severity, suggested_action = self._determine_severity_and_action(
+                impacted_tests
+            )
+
+            logger.info(
+                f"Impact analysis completed: {len(impacted_tests)} tests impacted, "
+                f"severity={severity}, action={suggested_action}"
+            )
+
+            return ImpactAnalysisResponse(
+                impacted_tests=impacted_tests,
+                severity=severity,
+                suggested_action=suggested_action,
+            )
+
+        except Exception as e:
+            logger.error(f"Impact analysis failed: {e}")
+            raise
+
+    def _calculate_impact_simple(
+        self, changed_paths: List[str], related_tests: List[str]
+    ) -> List[ImpactItem]:
+        """
+        Simple heuristic-based impact calculation.
+
+        This is a placeholder implementation that will be enhanced later
+        with rule engine and LLM capabilities.
+
+        Args:
+            changed_paths: List of changed file paths
+            related_tests: List of potentially related test files
+
+        Returns:
+            List of ImpactItem with impact assessments
+        """
+        impacted_tests = []
+
+        # Simple heuristics:
+        # 1. If a test file is in the changed files, it's definitely impacted
+        # 2. If a test file name matches a changed file (e.g., test_*.py vs *.py), it's likely impacted
+        # 3. If no clear relationship, assign low impact
+
+        # Combine changed paths with related tests for analysis
+        all_test_candidates = list(related_tests)
+
+        for changed_path in changed_paths:
+            # Extract filename without extension
+            changed_name = changed_path.split("/")[-1].split(".")[0]
+
+            # If this is a test file, mark it as impacted
+            if "test" in changed_path.lower() or changed_path.endswith(
+                ("_test.py", "test_*.py")
+            ):
+                impacted_tests.append(
+                    ImpactItem(
+                        test_path=changed_path,
+                        impact_score=1.0,
+                        severity="high",
+                        reasons=["Test file was directly modified"],
+                    )
+                )
+                continue
+
+            # Look for potentially related test files
+            for test_path in all_test_candidates:
+                if test_path not in [it.test_path for it in impacted_tests]:
+                    test_name = test_path.split("/")[-1].split(".")[0]
+
+                    # Check for naming patterns (e.g., module.py -> test_module.py)
+                    if (
+                        test_name == f"test_{changed_name}"
+                        or test_name == f"{changed_name}_test"
+                        or changed_name in test_name
+                    ):
+                        impacted_tests.append(
+                            ImpactItem(
+                                test_path=test_path,
+                                impact_score=0.8,
+                                severity="high",
+                                reasons=[
+                                    f"Test file name matches changed file: {changed_path}"
+                                ],
+                            )
+                        )
+                    elif (
+                        changed_name.replace("_", "").lower()
+                        in test_name.replace("_", "").lower()
+                    ):
+                        impacted_tests.append(
+                            ImpactItem(
+                                test_path=test_path,
+                                impact_score=0.5,
+                                severity="medium",
+                                reasons=[
+                                    f"Test file may be related to changed file: {changed_path}"
+                                ],
+                            )
+                        )
+
+        # Add any remaining related tests with low impact
+        for test_path in related_tests:
+            if test_path not in [it.test_path for it in impacted_tests]:
+                impacted_tests.append(
+                    ImpactItem(
+                        test_path=test_path,
+                        impact_score=0.1,
+                        severity="low",
+                        reasons=["Test file in related tests but no clear connection"],
+                    )
+                )
+
+        return impacted_tests
+
+    def _determine_severity_and_action(
+        self, impacted_tests: List[ImpactItem]
+    ) -> tuple[str, str]:
+        """
+        Determine overall severity and suggested action based on impacts.
+
+        Args:
+            impacted_tests: List of impact items
+
+        Returns:
+            Tuple of (severity, suggested_action)
+        """
+        if not impacted_tests:
+            return "none", "no-action"
+
+        # Check for high severity impacts
+        high_impact_tests = [it for it in impacted_tests if it.severity == "high"]
+        medium_impact_tests = [it for it in impacted_tests if it.severity == "medium"]
+
+        if len(high_impact_tests) > 2:
+            # Multiple high impact tests -> high severity, run all tests
+            return "high", "run-all-tests"
+        elif high_impact_tests or len(medium_impact_tests) > 3:
+            # Some high impact or many medium impact -> medium severity
+            return "medium", "run-affected-tests"
+        elif impacted_tests:
+            # Only low impact tests -> low severity
+            return "low", "run-affected-tests"
+        else:
+            return "none", "no-action"
