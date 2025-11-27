@@ -1,517 +1,333 @@
 # LLT Assistant Backend
 
-FastAPI backend service for analyzing Python pytest unit tests for defects and redundancies using a hybrid approach (rule engine + LLM).
+**A comprehensive FastAPI backend for pytest test analysis and generation** using hybrid AI-powered approaches.
 
-## Features
+## Overview
 
-- **Hybrid Analysis**: Combines fast rule-based analysis with intelligent LLM analysis
-- **Multiple Analysis Modes**:
-  - `rules-only`: Fast, deterministic analysis using AST parsing
-  - `llm-only`: Deep analysis using AI for complex issues
-  - `hybrid`: Best of both worlds - rules for common issues, LLM for complex cases
-- **Comprehensive Issue Detection**:
-  - Redundant assertions
-  - Missing assertions
-  - Trivial assertions (always true)
-  - Unused fixtures and variables
-  - Test code smells (timing dependencies, over-mocking, etc.)
-  - Test mergeability analysis
-- **Actionable Fix Suggestions**: Provides specific code changes to fix detected issues
-- **Async Task Management**: Redis-backed task system for long-running operations
-- **Feature 1 - Test Generation**: Generate pytest tests from code and user descriptions
-- **Production Ready**: Docker support with Redis, structured logging, error handling
+LLT Assistant Backend is an intelligent testing assistant that helps developers improve their Python test suites through automated analysis, generation, and optimization. It combines rule-based static analysis with Large Language Model (LLM) intelligence and graph database dependency tracking.
 
-## Architecture
+## Core Features
+
+### Feature 1: Test Generation
+**AI-powered test code generation** using Large Language Models
+- Generate pytest tests from source code and user descriptions
+- Support for existing test context and regeneration scenarios
+- Asynchronous processing with polling-based status checks
+- **Technology**: OpenAI-compatible LLM APIs, Redis task queue
+- **Endpoint**: `POST /workflows/generate-tests`
+
+### Feature 2: Coverage Optimization
+**Targeted test generation** to fill specific coverage gaps
+- Generate tests for uncovered code lines and branches
+- Coverage-aware generation with insertion line guidance
+- Integration with Coverage.py analysis results
+- **Technology**: LLM-based with coverage data analysis
+- **Endpoint**: `POST /optimization/coverage`
+
+### Feature 3: Impact Analysis
+**Graph-based dependency analysis** to determine which tests are affected by code changes
+- Function-level precision using git diff parsing
+- Reverse dependency traversal (2-level deep)
+- 90-95% accuracy vs 60-70% for file-level heuristics
+- **Technology**: Neo4j graph database (mandatory)
+- **Endpoint**: `POST /analysis/impact`
+
+### Feature 4: Quality Analysis
+**Comprehensive test quality assessment** with rule-based and LLM analysis
+- 6 detection rules: redundant assertions, missing assertions, trivial assertions, unused fixtures, unused variables, missing mocks
+- Multiple analysis modes: fast (rules-only), deep (LLM), hybrid
+- Optional Neo4j integration for enhanced mock detection
+- Actionable fix suggestions with code changes
+- **Technology**: AST parsing, optional Neo4j, optional LLM
+- **Endpoint**: `POST /quality/analyze`
+
+## Technical Architecture
+
+### System Components
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    FastAPI Backend                       │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────┐ │
-│  │   API Layer  │───▶│ Analysis     │───▶│ LLM      │ │
-│  │   (Routes)   │    │ Orchestrator │    │ Client   │ │
-│  └──────────────┘    └──────────────┘    └──────────┘ │
-│       │                       │                           │
-│       │                       ▼                           │
-│       │              ┌─────────────────┐                 │
-│       │              │  Rule Engine    │                 │
-│       │              │  (AST Analysis) │                 │
-│       │              └─────────────────┘                 │
-│       │                                                  │
-│       └──────────────┐                                  │
-│                      ▼                                  │
-│              ┌──────────────┐                           │
-│              │ Task Manager │                           │
-│              │   (Redis)    │                           │
-│              └──────────────┘                           │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                    ┌─────────────────┐
-                    │   Redis Store   │
-                    │  (Task State)   │
-                    └─────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     FastAPI Application                      │
+│                    (Python 3.11+ / Async)                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  API Layer (app/api/v1/)                             │  │
+│  │  - Feature 1 & 2: Test Generation & Coverage         │  │
+│  │  - Feature 3: Impact Analysis                        │  │
+│  │  - Feature 4: Quality Analysis                       │  │
+│  │  - Context Management (Neo4j ingestion)              │  │
+│  │  - Debug Endpoints                                   │  │
+│  └────────────┬─────────────────────────────────────────┘  │
+│               │                                              │
+│  ┌────────────┴─────────────────────────────────────────┐  │
+│  │  Service Layer (app/core/)                           │  │
+│  │  ┌─────────────┬──────────────┬──────────────────┐  │  │
+│  │  │ Test        │ Quality      │ Impact           │  │  │
+│  │  │ Analyzer    │ Service      │ Analyzer         │  │  │
+│  │  └─────────────┴──────────────┴──────────────────┘  │  │
+│  └──────┬──────────────┬──────────────┬────────────────┘  │
+│         │              │              │                     │
+│  ┌──────▼──────┐  ┌───▼──────┐  ┌────▼────────┐          │
+│  │ Rule Engine │  │ LLM      │  │ Graph       │          │
+│  │ (AST-based) │  │ Client   │  │ Service     │          │
+│  │ 6 Detection │  │ (httpx)  │  │ (Neo4j)     │          │
+│  │ Rules       │  │          │  │ Async Pool  │          │
+│  └─────────────┘  └──────────┘  └─────────────┘          │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+         │                    │                   │
+         ▼                    ▼                   ▼
+┌────────────────┐   ┌─────────────────┐   ┌──────────────┐
+│ Redis          │   │ LLM API         │   │ Neo4j 5.13+  │
+│ (Task Queue)   │   │ (OpenAI-compat) │   │ (Graph DB)   │
+│ Optional       │   │ Features 1,2,4  │   │ Features 3,4 │
+│ In-mem fallback│   │                 │   │              │
+└────────────────┘   └─────────────────┘   └──────────────┘
 ```
 
-## Development Status
+### Technology Stack
 
-### ✅ Feature-Complete Implementation
+**Core Framework**
+- **FastAPI 0.104+**: High-performance async web framework
+- **Python 3.11+**: Modern async/await support
+- **Pydantic 2.5+**: Data validation and settings management
+- **Uvicorn**: ASGI server
 
-**The LLT Assistant Backend is now fully implemented!** All core components are complete and functional:
+**Analysis & AI**
+- **AST Parsing**: Python's built-in `ast` module for static analysis
+- **LLM Integration**: httpx async client with OpenAI-compatible APIs
+- **Models Supported**: GPT-4, Claude, DeepSeek, or any OpenAI-compatible API
 
-#### 🏗️ Complete Architecture
-- **2,578 lines of application code** across multiple modules
-- **Hybrid analysis pipeline** with rule engine + LLM integration
-- **Production-ready FastAPI service** with comprehensive endpoints
+**Data Storage**
+- **Neo4j 5.13+**: Graph database for code dependency tracking
+- **Redis 7+**: Task queue and caching (optional, in-memory fallback available)
 
-#### 🚀 Implemented Components
+**Development & Testing**
+- **pytest**: Test framework with async support
+- **Docker & Docker Compose**: Containerized deployment
+- **uv**: Fast Python package manager (primary)
+- **Nix**: Experimental reproducible build system
 
-**Core Analysis Engine:**
-- **AST Parser** (`app/analyzers/ast_parser.py`): Complete Python AST parsing for pytest files
-- **Rule Engine** (`app/analyzers/rule_engine.py`): 5 core detection rules implemented
-- **LLM Client** (`app/core/llm_client.py`): Async client with retry logic and error handling
-- **LLM Analyzer** (`app/core/llm_analyzer.py`): Prompt templates and response parsing
-- **Main Analyzer** (`app/core/analyzer.py`): Hybrid orchestration of all analysis modes
+### Feature Dependency Matrix
 
-**API & Production:**
-- **API Routes** (`app/api/v1/routes.py`): Complete `/analyze`, `/health`, `/modes` endpoints
-- **Suggestion Generator** (`app/core/suggestion_generator.py`): Actionable fix recommendations
-- **Logging** (`app/core/logging_config.py`): Structured JSON logging
-- **Docker**: Multi-stage production-ready containerization
+| Feature | Neo4j Required | Redis Required | LLM Required |
+|---------|---------------|----------------|--------------|
+| Feature 1: Test Generation | ❌ No | ⚠️ Optional* | ✅ Yes |
+| Feature 2: Coverage Optimization | ❌ No | ⚠️ Optional* | ✅ Yes |
+| Feature 3: Impact Analysis | ✅ Yes (mandatory) | ❌ No | ❌ No |
+| Feature 4: Quality Analysis | ⚠️ Optional** | ❌ No | ⚠️ Optional*** |
 
-#### 🎯 Analysis Modes Supported
-- **`rules-only`**: Fast deterministic analysis (~1 second)
-- **`llm-only`**: Deep AI analysis (~5-10 seconds)
-- **`hybrid`**: Combined optimal approach (~10-15 seconds)
-
-#### 📊 Issue Detection Capabilities
-- Redundant assertions
-- Missing assertions
-- Trivial assertions (always true)
-- Unused fixtures and variables
-- Test mergeability opportunities
-- Code smells and anti-patterns
-
-### 🔧 Current Status: Production Ready
-
-The backend is feature-complete and ready for production use. The system can:
-- Analyze pytest files for quality issues
-- Provide actionable fix suggestions with code snippets
-- Handle all three analysis modes seamlessly
-- Scale horizontally with Docker deployment
-
-**Note**: Minor configuration testing remains, but core functionality is fully operational.
+**Notes:**
+- *Redis is optional with automatic in-memory fallback for Features 1 & 2
+- **Neo4j enhances mock detection accuracy in Feature 4 but not required
+- ***LLM required only for "deep" or "hybrid" analysis modes; "fast" mode uses rules only
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.11+
-- UV package manager (for standard build)
-- Docker and Docker Compose (for containerized deployment)
-- Nix (optional, for experimental reproducible builds)
+- **Python 3.11+** - Required for all builds
+- **Docker & Docker Compose** - Recommended for deployment
+- **uv package manager** - For standard development (install: `pip install uv`)
+- **LLM API Key** - Required for Features 1, 2, and Feature 4 (deep/hybrid modes)
 
-## Build Options
+### Option 1: Docker Deployment (Recommended)
 
-The project supports two build systems:
+**Best for:** Production use, full feature testing, complete development environment
 
-### Standard Build (Production)
-
-**Using UV + pip:**
 ```bash
-# Install dependencies
+# 1. Clone the repository
+git clone <repository-url>
+cd LLT-Assistant-Backend
+
+# 2. Configure environment variables
+cp .env.example .env
+# Edit .env and set:
+#   - LLM_API_KEY=your-api-key-here
+#   - Other settings as needed
+
+# 3. Start all services (Redis, Neo4j, API)
+docker-compose up -d
+
+# 4. Verify services are running
+docker-compose ps
+
+# 5. Access the application
+# - API Documentation: http://localhost:8886/docs
+# - Health Check: http://localhost:8886/health
+# - Neo4j Browser: http://localhost:7474 (credentials: neo4j/neo4j123)
+```
+
+**Services included:**
+- **API Service** (port 8886): FastAPI backend
+- **Redis** (port 6379): Task queue for Features 1 & 2
+- **Neo4j** (ports 7474, 7687): Graph database for Features 3 & 4
+
+### Option 2: Local Development (Standard Build)
+
+**Best for:** Lightweight development, API-only testing without graph features
+
+```bash
+# 1. Install dependencies
 uv pip install -e .
 
-# Run development server
-uvicorn app.main:app --reload
+# 2. Set up environment variables
+cp .env.example .env
+# Edit .env to add LLM_API_KEY
+
+# 3. (Optional) Start Redis locally
+# If not available, system will use in-memory fallback
+
+# 4. (Optional) Start Neo4j locally
+# docker-compose up -d neo4j
+# Without Neo4j: Feature 3 returns 503, Feature 4 falls back to AST-only
+
+# 5. Run development server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8886
+
+# 6. Access API
+# - Documentation: http://localhost:8886/docs
+# - Health Check: http://localhost:8886/health
 ```
 
-### Nix Build (Experimental)
+### Option 3: Nix Build (Experimental)
 
-**Prerequisites:**
-```bash
-# Install Nix
-sh <(curl -L https://nixos.org/nix/install) --daemon
-```
+**Best for:** Reproducible builds, Nix enthusiasts
 
-**Build application:**
+This is currently in POC phase. See `CLAUDE.md` section 13 for detailed instructions.
+
 ```bash
 # Build Python application
 nix build .
 
-# Run application
-./result/bin/uvicorn app.main:app --host 0.0.0.0 --port 8886
-```
-
-**Build Docker image:**
-```bash
-# Build Docker image with Nix
-nix build .#dockerImage
-
-# Load and run
-docker load < result
-docker run -p 8886:8886 llt-api:latest
-```
-
-**Development shell:**
-```bash
-# Enter development environment with all dependencies
+# Enter development shell
 nix develop
+
+# Build Docker image
+nix build .#dockerImage
 ```
-
-> **Note:** Nix build is experimental (POC phase). For production use, stick with the standard UV-based build.
-
-### Local Development
-
-1. **Install dependencies using UV:**
-   ```bash
-   uv pip install -e .
-   ```
-
-2. **Set up environment variables:**
-   ```bash
-   cp .env.example .env
-   # Edit .env to add your LLM_API_KEY
-   ```
-
-3. **Run the development server:**
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-
-4. **Access the API:**
-   - API documentation: http://localhost:8886/docs
-   - Health check: http://localhost:8886/health
-
-### Docker Deployment
-
-1. **Build and run with Docker Compose:**
-   ```bash
-   docker-compose up --build
-   ```
-
-2. **Services included:**
-   - **API Service**: FastAPI backend on port 8886
-   - **Redis Service**: Task management and caching on port 6379
-
-3. **The API will be available at:** http://localhost:8886
-   - API documentation: http://localhost:8886/docs
-   - Health check: http://localhost:8886/health
 
 ## API Usage
 
-### Analyze Test Files
+### Available Endpoints
 
-**Endpoint:** `POST /quality/analyze`
+**Test Analysis & Generation:**
+- `POST /workflows/generate-tests` - Generate new pytest tests (Feature 1)
+- `POST /optimization/coverage` - Generate tests for coverage gaps (Feature 2)
+- `POST /analysis/impact` - Analyze test impact from code changes (Feature 3)
+- `POST /quality/analyze` - Analyze test quality issues (Feature 4)
+
+**Task Management:**
+- `GET /tasks/{task_id}` - Poll async task status (Features 1 & 2)
+
+**Context Management:**
+- `POST /context/ingest` - Ingest code symbols into graph database
+- `GET /context/projects/{project_id}` - Retrieve project data from graph
+- `GET /context/query-function/{function_name}` - Query function dependencies
+- `DELETE /context/projects/{project_id}` - Clear project data
+
+**Utility:**
+- `GET /health` - Health check with service status
+- `GET /` - API information
+
+### Example: Quality Analysis (Feature 4)
+
+Analyze test files for quality issues with actionable fix suggestions.
 
 **Request:**
+```bash
+curl -X POST http://localhost:8886/quality/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "files": [
+      {
+        "path": "tests/test_example.py",
+        "content": "def test_example():\n    assert True\n    assert True  # Redundant\n"
+      }
+    ],
+    "mode": "fast"
+  }'
+```
+**Response:**
 ```json
 {
-  "files": [
+  "analysis_id": "uuid-123",
+  "summary": {
+    "total_files": 1,
+    "total_issues": 1,
+    "critical_issues": 0
+  },
+  "issues": [
     {
-      "path": "test_example.py",
-      "content": "def test_example():\n    assert True\n    assert True  # Redundant!\n"
+      "file_path": "tests/test_example.py",
+      "line": 3,
+      "severity": "warning",
+      "code": "redundant-assertion",
+      "message": "Duplicate assertion detected",
+      "detected_by": "rule",
+      "suggestion": {
+        "type": "delete",
+        "new_text": null,
+        "description": "Remove this duplicate assertion to reduce redundancy"
+      }
     }
-  ],
-  "mode": "hybrid"
+  ]
 }
+```
+
+### Example: Impact Analysis (Feature 3)
+
+Analyze which tests are affected by code changes using graph dependencies.
+
+**Request:**
+```bash
+curl -X POST http://localhost:8886/analysis/impact \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_context": {
+      "files_changed": ["src/payment.py"],
+      "related_tests": []
+    },
+    "git_diff": "diff --git a/src/payment.py\n+def process_payment():\n+    pass",
+    "project_id": "my-project"
+  }'
 ```
 
 **Response:**
 ```json
 {
-  "analysis_id": "uuid-123",
-  "issues": [
+  "impacted_tests": [
     {
-      "file": "test_example.py",
-      "line": 3,
-      "column": 4,
-      "severity": "warning",
-      "type": "redundant-assertion",
-      "message": "Duplicate assertion found",
-      "detected_by": "rule_engine",
-      "suggestion": {
-        "action": "remove",
-        "old_code": "    assert True  # Redundant!",
-        "new_code": null,
-        "explanation": "Remove this duplicate assertion to reduce redundancy."
-      }
+      "test_path": "tests/test_payment.py",
+      "impact_score": 0.9,
+      "severity": "high",
+      "reasons": ["Test directly tests modified function process_payment"]
     }
   ],
-  "metrics": {
-    "total_tests": 1,
-    "issues_count": 1,
-    "analysis_time_ms": 150
-  }
+  "severity": "high",
+  "suggested_action": "run-affected-tests"
 }
 ```
 
-### Available Analysis Modes
-
-- **`rules-only`**: Fast analysis using deterministic rules (AST parsing)
-- **`llm-only`**: Deep analysis using AI for complex issues
-- **`hybrid`**: Combines both approaches for optimal results
-
-### Get Analysis Modes
-
-**Endpoint:** `GET /modes`
-
-Returns available analysis modes with descriptions.
+For more examples, see the interactive API documentation at `/docs` when the server is running.
 
 ## Configuration
 
-Configuration is managed through environment variables:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `LLM_API_KEY` | API key for LLM service | Required |
-| `LLM_BASE_URL` | LLM API base URL | `https://api.qnaigc.com/v1` |
-| `LLM_MODEL` | LLM model to use | `deepseek/deepseek-v3.2-exp` |
-| `LOG_LEVEL` | Logging level | `INFO` |
-| `LOG_FORMAT` | Log format (json/text) | `json` |
-| `MAX_FILE_SIZE` | Maximum file size in bytes | `1048576` (1MB) |
-| `MAX_FILES_PER_REQUEST` | Maximum files per request | `50` |
-| `REDIS_URL` | Redis connection URL for task management | `redis://localhost:6379/0` |
-
-### Redis Configuration
-
-The application uses Redis for async task management (Feature 1 - Test Generation).
-
-**Local Development:**
-- Default: `redis://localhost:6379/0`
-- Ensure Redis is running locally or use Docker Compose
-
-**Docker Compose:**
-- Automatically configured: `redis://redis:6379/0`
-- Redis service is included in `docker-compose.yml`
-- Data is persisted in a Docker volume (`redis-data`)
-
-**Production:**
-- Set `REDIS_URL` to your Redis instance (e.g., `redis://redis.example.com:6379/0`)
-- Supports SSL connections: `rediss://` (with SSL certificate validation)
-
-## Development
-
-### Project Structure
-
-```
-llt-backend/
-├── app/
-│   ├── __init__.py
-│   ├── main.py              # FastAPI application entry
-│   ├── config.py            # Configuration management
-│   ├── api/
-│   │   ├── __init__.py
-│   │   └── v1/
-│   │       ├── __init__.py
-│   │       ├── routes.py    # API endpoints
-│   │       └── schemas.py   # Pydantic models
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── analyzer.py      # Main analysis orchestrator
-│   │   ├── llm_client.py    # LLM API client
-│   │   ├── llm_analyzer.py  # LLM prompt templates
-│   │   ├── suggestion_generator.py  # Fix suggestions
-│   │   └── logging_config.py # Structured logging
-│   ├── analyzers/
-│   │   ├── __init__.py
-│   │   ├── rule_engine.py   # Static analysis rules
-│   │   └── ast_parser.py    # Python AST parsing
-│   └── models/
-│       ├── __init__.py
-│       └── issue.py         # Issue data models
-├── tests/                   # Test suite
-├── Dockerfile              # Container definition
-├── docker-compose.yml      # Service orchestration
-├── pyproject.toml          # Project dependencies
-└── README.md              # This file
-```
-
-### Running Tests
-
-```bash
-# Install dev dependencies
-uv pip install -e ".[dev]"
-
-# Run all unit tests
-pytest tests/unit/
-
-# Run unit tests with coverage
-pytest tests/unit/ --cov=app --cov-report=html
-```
-
-#### Integration Tests
-
-Integration tests require Neo4j to be running. These tests verify the complete request flow through the main FastAPI application with real database connections.
-
-**Prerequisites:**
-- Neo4j must be running (use Docker Compose)
-
-**Running Integration Tests:**
-
-```bash
-# Start Neo4j
-docker-compose up -d neo4j
-
-# Verify Neo4j is running
-nc -zv localhost 7687
-
-# Run integration tests (when running locally, must use localhost URI)
-NEO4J_URI=bolt://localhost:7687 \
-NEO4J_USER=neo4j \
-NEO4J_PASSWORD=neo4j123 \
-NEO4J_DATABASE=neo4j \
-uv run pytest tests/integration/ -v -m integration --no-cov
-
-# Or run specific integration test file
-NEO4J_URI=bolt://localhost:7687 \
-NEO4J_USER=neo4j \
-NEO4J_PASSWORD=neo4j123 \
-NEO4J_DATABASE=neo4j \
-uv run pytest tests/integration/test_full_flow.py -v -m integration
-```
-
-**Important Notes:**
-- When running tests **locally** (outside Docker), use `NEO4J_URI=bolt://localhost:7687`
-- When running tests **inside Docker**, use `NEO4J_URI=bolt://neo4j:7687` (default in .env)
-- Integration tests are marked with `@pytest.mark.integration`
-- Each test creates unique project IDs to avoid conflicts
-- Cleanup fixtures automatically remove test data after each test
-
-### Code Quality
-
-The project uses several tools for code quality:
-
-- **Black**: Code formatting
-- **isort**: Import sorting
-- **mypy**: Type checking
-- **pytest**: Testing framework
-
-```bash
-# Format code
-black app/ tests/
-
-# Sort imports
-isort app/ tests/
-
-# Type check
-mypy app/
-
-# Run tests
-pytest
-```
-
-## Issue Detection Rules
-
-### Rule Engine (Fast, Deterministic)
-
-1. **Redundant Assertions**: Duplicate assertions within the same test
-2. **Missing Assertions**: Test functions with no assertions
-3. **Trivial Assertions**: Assertions that always pass (e.g., `assert True`)
-4. **Unused Fixtures**: Fixtures defined but never used
-5. **Unused Variables**: Variables assigned but never referenced
-
-### LLM Analysis (Intelligent, Contextual)
-
-1. **Test Mergeability**: Identifies tests that could be logically merged
-2. **Assertion Quality**: Evaluates if assertions are sufficient and meaningful
-3. **Test Smells**: Detects code smells like timing dependencies, over-mocking, etc.
-
-## Neo4j Graph Database Integration
-
-The application includes Neo4j graph database for storing and querying code dependency graphs. This is currently in Phase 0 (validation/debugging) and provides debug endpoints for testing.
-
-### Architecture
-
-- **Neo4j 5.13+** running in Docker container
-- **Graph Service Layer** (`app/core/graph/graph_service.py`) for business logic
-- **Neo4j Client** (`app/core/graph/neo4j_client.py`) with async connection pooling
-- **Debug API** endpoints for testing and validation
-
-### Data Model
-
-**Nodes:**
-- `Symbol`: Represents functions, classes, and methods
-  - Properties: name, qualified_name, kind, signature, file_path, line_start, line_end, project_id
-
-**Relationships:**
-- `CALLS`: Function A calls Function B
-- `IMPORTS`: File imports Module
-
-### Debug API Endpoints
-
-**POST /debug/ingest-symbols**
-
-Ingest symbol information into graph database.
-
-Request body:
-```json
-{
-  "project_id": "test-project",
-  "symbols": [
-    {
-      "name": "calculate_total",
-      "qualified_name": "app.utils.calculate_total",
-      "kind": "function",
-      "signature": "calculate_total(items: List[Item]) -> Decimal",
-      "file_path": "/app/utils.py",
-      "line_start": 45,
-      "line_end": 60
-    }
-  ],
-  "calls": [
-    {
-      "caller_qualified_name": "app.service.process_order",
-      "callee_qualified_name": "app.utils.calculate_total",
-      "line": 123
-    }
-  ],
-  "imports": []
-}
-```
-
-**GET /debug/query-function/{function_name}**
-
-Query function and its dependencies.
-
-```bash
-GET /debug/query-function/calculate_total?project_id=test-project&depth=1
-```
-
-Response includes:
-- Function information
-- Direct dependencies (depth=1) or transitive (depth=2-3)
-- Query execution time (target: < 100ms)
-
-**GET /debug/health/neo4j**
-
-Health check endpoint for Neo4j connection.
-
-### Performance Metrics
-
-- **Batch Insert**: 100 nodes + 200 relationships < 2s
-- **Query Latency**: Single function query < 100ms
-- **Memory Usage**: < 500MB for typical workload
-
-### Running with Neo4j
-
-```bash
-# Start all services (Redis, Neo4j, API)
-docker-compose up -d
-
-# Access Neo4j Browser
-open http://localhost:7474
-
-# Run integration tests (requires Neo4j running)
-pytest tests/integration/test_neo4j_integration.py -m integration
-```
-
 ### Environment Variables
 
-Add to your `.env` file:
+Create a `.env` file in the project root with the following variables:
 
+**LLM Configuration** (Required for Features 1, 2, 4-deep/hybrid):
+```env
+LLM_API_KEY=your-api-key-here
+LLM_BASE_URL=https://api.openai.com/v1  # Or compatible endpoint
+LLM_MODEL=gpt-4
+LLM_TIMEOUT=120
+LLM_MAX_RETRIES=3
+```
+
+**Neo4j Configuration** (Required for Feature 3, optional for Feature 4):
 ```env
 NEO4J_URI=bolt://neo4j:7687
 NEO4J_USER=neo4j
@@ -519,61 +335,234 @@ NEO4J_PASSWORD=neo4j123
 NEO4J_DATABASE=neo4j
 ```
 
-### Neo4j Browser Access
-
-1. Open http://localhost:7474 in your browser
-2. Login with configured credentials (default: neo4j/neo4j123)
-3. Run Cypher queries to explore the graph:
-
-```cypher
-// View all symbols
-MATCH (s:Symbol) RETURN s LIMIT 25
-
-// View function dependencies
-MATCH (f:Symbol {name: 'calculate_total'})-[:CALLS]->(dep:Symbol)
-RETURN f, dep
-
-// View indexes
-:schema
+**Redis Configuration** (Optional - in-memory fallback available):
+```env
+REDIS_URL=redis://redis:6379/0
 ```
 
-## Deployment
+**Application Settings:**
+```env
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+DEBUG=false
+MAX_FILES_PER_REQUEST=50
+MAX_FILE_SIZE=1048576
+```
 
-### Cloud Platforms
+## Development
 
-The application is designed for easy deployment on:
-- **Heroku**: Use the Dockerfile for container deployment
-- **DigitalOcean**: Use Docker Compose for multi-service setup
-- **Fly.io**: Deploy using the provided Dockerfile
+### Project Structure
 
-### Production Considerations
+```
+llt-assistant-backend/
+├── app/
+│   ├── main.py                    # FastAPI application entry point
+│   ├── config.py                  # Configuration management (env vars)
+│   │
+│   ├── api/v1/                    # API layer
+│   │   ├── routes.py              # Main API endpoints (Features 1-4)
+│   │   ├── context.py             # Context/graph ingestion endpoints
+│   │   ├── schemas.py             # Pydantic request/response models
+│   │   └── debug_routes.py        # Debug endpoints for Neo4j
+│   │
+│   ├── core/                      # Core business logic
+│   │   ├── analyzer.py            # Test & Impact analyzers
+│   │   ├── constants.py           # Issue types and constants
+│   │   ├── protocols.py           # Type protocols
+│   │   │
+│   │   ├── analysis/              # Analysis strategies
+│   │   │   ├── llm_analyzer.py    # LLM-based analysis
+│   │   │   ├── strategies.py      # Analysis mode strategies
+│   │   │   └── uncertain_case_detector.py
+│   │   │
+│   │   ├── graph/                 # Neo4j integration
+│   │   │   ├── neo4j_client.py    # Async Neo4j driver wrapper
+│   │   │   └── graph_service.py   # Graph operations service
+│   │   │
+│   │   ├── llm/                   # LLM integration
+│   │   │   └── llm_client.py      # OpenAI-compatible client
+│   │   │
+│   │   ├── services/              # Service layer
+│   │   │   ├── quality_service.py # Quality analysis orchestrator
+│   │   │   └── logging_config.py  # Structured logging
+│   │   │
+│   │   ├── tasks/                 # Async task management
+│   │   │   ├── tasks.py           # Task execution and storage
+│   │   │   └── in_memory_tasks.py # In-memory fallback
+│   │   │
+│   │   └── utils/                 # Utilities
+│   │       ├── diff_parser.py     # Git diff parsing
+│   │       ├── change_classifier.py # Functional vs non-functional
+│   │       ├── json_extractor.py  # JSON response extraction
+│   │       └── module_resolver.py # Python module resolution
+│   │
+│   ├── analyzers/                 # Analysis engines
+│   │   ├── ast_parser.py          # Python AST parsing
+│   │   └── rule_engine.py         # 6 quality detection rules
+│   │
+│   └── models/                    # Data models
+│       ├── context.py             # Graph/context models
+│       └── (other models)
+│
+├── tests/                         # Test suite
+│   ├── unit/                      # Unit tests (no external deps)
+│   ├── integration/               # Integration tests (require Neo4j)
+│   └── fixtures/                  # Test fixtures and sample data
+│
+├── docs/                          # Documentation
+│   ├── feat/                      # Feature documentation
+│   ├── context/                   # Architecture context
+│   ├── testing/                   # Testing guides
+│   └── tasks/                     # Task tracking
+│
+├── docker-compose.yml             # Service orchestration
+├── Dockerfile                     # Container definition
+├── pyproject.toml                 # Project dependencies (PEP 621)
+├── uv.lock                        # Dependency lock file
+├── flake.nix                      # Nix build definition (experimental)
+├── CLAUDE.md                      # Coding standards and guidelines
+└── README.md                      # This file
+```
 
-1. **Security**: Configure CORS appropriately for your domain
-2. **Scaling**: The application is stateless and can be horizontally scaled
-3. **Monitoring**: Structured JSON logs for easy parsing
-4. **Health Checks**: `/health` endpoint for load balancer health checks
-5. **Rate Limiting**: Implement rate limiting for the `/analyze` endpoint
+### Running Tests
 
-## Contributing
+**Unit Tests** (no external dependencies required):
+```bash
+# Install dev dependencies
+uv pip install -e ".[dev]"
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Run the test suite
-6. Submit a pull request
+# Run all unit tests
+pytest tests/unit/ -v
 
-## License
+# Run with coverage report
+pytest tests/unit/ --cov=app --cov-report=html
+```
+
+**Integration Tests** (requires Neo4j running):
+```bash
+# Start Neo4j
+docker-compose up -d neo4j
+
+# Run integration tests with local Neo4j
+NEO4J_URI=bolt://localhost:7687 \
+NEO4J_USER=neo4j \
+NEO4J_PASSWORD=neo4j123 \
+NEO4J_DATABASE=neo4j \
+pytest tests/integration/ -v -m integration
+
+# Stop Neo4j when done
+docker-compose down neo4j
+```
+
+**Important:** When running tests locally (outside Docker), use `NEO4J_URI=bolt://localhost:7687`. Inside Docker containers, use `bolt://neo4j:7687`.
+
+### Code Quality Tools
+
+The project uses automated code quality tools:
+
+```bash
+# Format code with Black
+black app/ tests/
+
+# Sort imports with isort
+isort app/ tests/
+
+# Type checking with mypy
+mypy app/
+
+# Run all quality checks
+pre-commit run --all-files
+```
+
+## Additional Resources
+
+### Documentation
+
+- **Feature Documentation**: See `docs/feat/` for detailed architecture of each feature
+  - [Feature 1: Test Generation](docs/feat/feat1-test-generation.md)
+  - [Feature 2: Coverage Optimization](docs/feat/feat2-coverage-optimization.md)
+  - [Feature 3: Impact Analysis](docs/feat/feat3-impact-analysis.md)
+  - [Feature 4: Quality Analysis](docs/feat/feat4-quality-analyse.md)
+- **Neo4j Integration**: See [docs/context/neo4j-integration.md](docs/context/neo4j-integration.md)
+- **Coding Standards**: See [CLAUDE.md](CLAUDE.md) for contribution guidelines
+- **API Specification**: Interactive docs at `/docs` when server is running
+
+### Neo4j Graph Database
+
+The project uses Neo4j for storing code dependency graphs. Key capabilities:
+
+- **Data Model**: Stores functions, classes, methods as `Symbol` nodes
+- **Relationships**: Tracks `CALLS` (function calls) and `IMPORTS` (module imports)
+- **Query Performance**: <100ms for typical dependency queries
+- **Multi-Project**: Isolates data by `project_id`
+
+**Quick Access:**
+- Neo4j Browser UI: http://localhost:7474
+- Default credentials: `neo4j` / `neo4j123`
+- Bolt protocol: `bolt://localhost:7687`
+
+**Ingestion Workflow:**
+```bash
+# 1. Parse code symbols (frontend/LSP parser)
+# 2. Send to backend via POST /context/ingest
+# 3. Query dependencies via GET /context/query-function/{name}
+```
+
+See [docs/context/neo4j-integration.md](docs/context/neo4j-integration.md) for complete documentation.
+
+### Performance Characteristics
+
+| Feature | Typical Latency | Bottleneck |
+|---------|----------------|------------|
+| Feature 1: Test Generation | 5-30 seconds | LLM API call |
+| Feature 2: Coverage Optimization | 8-40 seconds | LLM API call |
+| Feature 3: Impact Analysis | 150-300ms | Neo4j queries |
+| Feature 4: Quality Analysis | 100-500ms | AST parsing + optional Neo4j |
+
+### Production Deployment
+
+**Recommended Stack:**
+- **Load Balancer**: Nginx or cloud load balancer
+- **API**: 2-4 FastAPI instances (Docker containers)
+- **Neo4j**: Managed service or dedicated instance
+- **Redis**: Redis Cloud or ElastiCache (optional)
+- **LLM API**: OpenAI, Azure OpenAI, or self-hosted
+
+**Scaling Considerations:**
+- API is stateless and can scale horizontally
+- Neo4j benefits from vertical scaling (more RAM)
+- LLM rate limits may require request queuing
+- Monitor `/health` endpoint for service availability
+
+**Security:**
+- Configure CORS for specific domains (not `*`)
+- Use HTTPS for all external communication
+- Rotate LLM API keys regularly
+- Network isolation for Neo4j and Redis
+
+### Contributing
+
+We welcome contributions! Please:
+
+1. Read [CLAUDE.md](CLAUDE.md) for coding standards
+2. Write tests for new features
+3. Follow conventional commit format
+4. Ensure all tests pass before submitting PR
+5. Update documentation as needed
+
+### License
 
 MIT License - see LICENSE file for details.
 
-## Support
+### Support & Issues
 
-For issues and questions:
-1. Check the documentation
-2. Search existing issues
-3. Create a new issue with detailed information
+For questions or issues:
+1. Check documentation in `docs/`
+2. Search existing GitHub issues
+3. Create new issue with detailed description and reproduction steps
 
 ---
 
-**Note**: This project requires an LLM API key for the AI-powered analysis features. The rule-based analysis works without API keys.
+**Project Status:** Production Ready
+**Version:** 0.1.0
+**Last Updated:** 2025-11-27
